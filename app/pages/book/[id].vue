@@ -38,15 +38,15 @@ bookingState.value.clientProfileId = clientProfileId
 
 const stepTitles = [
   'Choose Services',
-  'Select Provider',
-  'Pick Date & Time',
+  'Select Date & Time',
+  'Choose Employees',
   'Your Information'
 ]
 
 const stepDescriptions = [
   'Select one or more services you would like to book',
-  'Choose your preferred service provider',
-  'Pick a convenient date and time',
+  'Pick a convenient date and time for each service',
+  'Choose available employees for each service',
   'Enter your contact information'
 ]
 
@@ -179,8 +179,8 @@ const startNewBooking = () => {
       <!-- Step Content -->
       <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-8 mb-8">
         <StepServices v-if="currentStep === 1" />
-        <StepEmployee v-else-if="currentStep === 2" />
-        <StepDateTime v-else-if="currentStep === 3" />
+        <StepDateTime v-else-if="currentStep === 2" />
+        <StepEmployee v-else-if="currentStep === 3" />
         <StepCustomerInfo v-else-if="currentStep === 4" @booking-complete="handleBookingComplete" />
       </div>
 

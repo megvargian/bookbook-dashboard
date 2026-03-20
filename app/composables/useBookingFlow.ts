@@ -1,11 +1,18 @@
 import { ref, computed } from 'vue'
 
+export interface ServiceBooking {
+  serviceId: string
+  serviceName?: string
+  date: string | null
+  time: string | null
+  employeeId: string | null
+  employeeName?: string
+}
+
 export interface BookingFlowState {
   clientProfileId: string | null
   selectedServices: string[]
-  selectedEmployee: string | null
-  selectedDate: string | null
-  selectedTime: string | null
+  serviceBookings: ServiceBooking[]
   customerInfo: {
     firstName: string
     lastName: string
@@ -19,9 +26,7 @@ export interface BookingFlowState {
 const bookingState = ref<BookingFlowState>({
   clientProfileId: null,
   selectedServices: [],
-  selectedEmployee: null,
-  selectedDate: null,
-  selectedTime: null,
+  serviceBookings: [],
   customerInfo: {
     firstName: '',
     lastName: '',
@@ -40,9 +45,7 @@ export const useBookingFlow = () => {
     bookingState.value = {
       clientProfileId: savedClientProfileId, // Preserve the client profile ID
       selectedServices: [],
-      selectedEmployee: null,
-      selectedDate: null,
-      selectedTime: null,
+      serviceBookings: [],
       customerInfo: {
         firstName: '',
         lastName: '',
@@ -78,17 +81,54 @@ export const useBookingFlow = () => {
   })
 
   const canProceedToStep3 = computed(() => {
-    return bookingState.value.selectedEmployee !== null
+    // Check if all services have date and time selected
+    return bookingState.value.serviceBookings.length === bookingState.value.selectedServices.length &&
+           bookingState.value.serviceBookings.every(sb => sb.date && sb.time)
   })
 
   const canProceedToStep4 = computed(() => {
-    return bookingState.value.selectedDate !== null && bookingState.value.selectedTime !== null
+    // Check if all services have employees assigned
+    return bookingState.value.serviceBookings.length === bookingState.value.selectedServices.length &&
+           bookingState.value.serviceBookings.every(sb => sb.employeeId)
   })
 
   const isComplete = computed(() => {
     const info = bookingState.value.customerInfo
     return info.firstName && info.lastName && info.email && info.phone && info.gender
   })
+
+  // Helper functions for service bookings
+  const updateServiceBookings = (serviceIds: string[], services?: any[]) => {
+    const currentBookings = new Map(bookingState.value.serviceBookings.map(sb => [sb.serviceId, sb]))
+
+    bookingState.value.serviceBookings = serviceIds.map(serviceId => {
+      const existing = currentBookings.get(serviceId)
+      const service = services?.find(s => s.id === serviceId)
+
+      return existing || {
+        serviceId,
+        serviceName: service?.name || '',
+        date: null,
+        time: null,
+        employeeId: null,
+        employeeName: ''
+      }
+    })
+  }
+
+  const updateServiceBooking = (serviceId: string, updates: Partial<ServiceBooking>) => {
+    const index = bookingState.value.serviceBookings.findIndex(sb => sb.serviceId === serviceId)
+    if (index !== -1) {
+      bookingState.value.serviceBookings[index] = {
+        ...bookingState.value.serviceBookings[index],
+        ...updates
+      }
+    }
+  }
+
+  const getServiceBooking = (serviceId: string) => {
+    return bookingState.value.serviceBookings.find(sb => sb.serviceId === serviceId)
+  }
 
   return {
     bookingState,
@@ -100,6 +140,9 @@ export const useBookingFlow = () => {
     canProceedToStep2,
     canProceedToStep3,
     canProceedToStep4,
-    isComplete
+    isComplete,
+    updateServiceBookings,
+    updateServiceBooking,
+    getServiceBooking
   }
 }

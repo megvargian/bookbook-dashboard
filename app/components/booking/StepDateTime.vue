@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { useBookingFlow } from '~/composables/useBookingFlow'
 
-const { bookingState } = useBookingFlow()
-
-const selectedDate = ref<Date | null>(null)
-const currentMonth = ref(new Date())
+const { bookingState, updateServiceBooking, getServiceBooking } = useBookingFlow()
 
 // Generate time slots (8 AM to 8 PM, 30-minute intervals)
 const timeSlots = computed(() => {
@@ -19,30 +16,50 @@ const timeSlots = computed(() => {
   return slots
 })
 
-// Fetch bookings for the selected employee and date
-const { data: existingBookings, refresh: refreshBookings } = await useFetch('/api/bookings', {
-  lazy: true,
-  server: false,
+// Track which service is currently being configured
+const activeServiceIndex = ref(0)
+const activeService = computed(() => bookingState.value.serviceBookings[activeServiceIndex.value])
+
+// Date state for the current service
+const selectedDate = ref<Date | null>(null)
+const currentMonth = ref(new Date())
+
+// Fetch services data for display
+const { data: services } = await useLazyFetch('/api/public-services', {
   default: () => [],
+  server: false
+})
+
+// Get service details
+const getServiceDetails = (serviceId: string) => {
+  return services.value?.find(s => s.id === serviceId)
+}
+
+// Fetch existing bookings for availability check
+const { data: existingBookings } = await useLazyFetch('/api/public-bookings-check', {
+  default: () => [],
+  server: false,
   query: computed(() => ({
-    employee_id: bookingState.value.selectedEmployee,
     date: selectedDate.value ? formatDate(selectedDate.value) : null
   })),
-  watch: [selectedDate, () => bookingState.value.selectedEmployee]
+  watch: [selectedDate]
 })
 
 const formatDate = (date: Date) => {
   return date.toISOString().split('T')[0]
 }
 
-const isTimeSlotAvailable = (time: string) => {
+const isTimeSlotAvailable = (time: string, serviceId: string) => {
   if (!selectedDate.value || !existingBookings.value) return true
 
   const dateStr = formatDate(selectedDate.value)
+  const serviceDetails = getServiceDetails(serviceId)
+  const serviceDurationHours = serviceDetails?.duration_service_in_s ? serviceDetails.duration_service_in_s / 3600 : 1
 
   // Convert the time slot to minutes for comparison
   const [slotHour, slotMinute] = time.split(':').map(Number)
   const slotTimeInMinutes = slotHour * 60 + slotMinute
+  const slotEndTimeInMinutes = slotTimeInMinutes + (serviceDurationHours * 60)
 
   return !existingBookings.value.some((booking: any) => {
     const bookingDate = booking.booking_date.split('T')[0]
@@ -64,24 +81,44 @@ const isTimeSlotAvailable = (time: string) => {
     const [endHour, endMinute] = endTime.split(':').map(Number)
     const endTimeInMinutes = endHour * 60 + endMinute
 
-    // Check if the slot falls within the booking range (inclusive of both start and end)
-    return slotTimeInMinutes >= startTimeInMinutes && slotTimeInMinutes <= endTimeInMinutes
+    // Check if there's any overlap
+    return (slotTimeInMinutes < endTimeInMinutes && slotEndTimeInMinutes > startTimeInMinutes)
   })
 }
 
 const selectTimeSlot = (time: string) => {
-  if (!selectedDate.value) return
+  if (!selectedDate.value || !activeService.value) return
 
   // Don't allow selecting unavailable time slots
-  if (!isTimeSlotAvailable(time)) return
+  if (!isTimeSlotAvailable(time, activeService.value.serviceId)) return
 
-  bookingState.value.selectedDate = formatDate(selectedDate.value)
-  bookingState.value.selectedTime = time
+  const dateStr = formatDate(selectedDate.value)
+  updateServiceBooking(activeService.value.serviceId, {
+    date: dateStr,
+    time: time
+  })
 }
 
 const isSelected = (time: string) => {
-  return bookingState.value.selectedTime === time &&
-         bookingState.value.selectedDate === (selectedDate.value ? formatDate(selectedDate.value) : null)
+  if (!activeService.value || !selectedDate.value) return false
+  const dateStr = formatDate(selectedDate.value)
+  return activeService.value.time === time && activeService.value.date === dateStr
+}
+
+// Navigation between services
+const goToService = (index: number) => {
+  if (index >= 0 && index < bookingState.value.serviceBookings.length) {
+    activeServiceIndex.value = index
+    // Reset date picker to service's selected date or current date
+    const serviceBooking = bookingState.value.serviceBookings[index]
+    if (serviceBooking.date) {
+      selectedDate.value = new Date(serviceBooking.date)
+      currentMonth.value = new Date(serviceBooking.date)
+    } else {
+      selectedDate.value = null
+      currentMonth.value = new Date()
+    }
+  }
 }
 
 // Calendar helpers
@@ -99,166 +136,241 @@ const daysInMonth = computed(() => {
     days.push(null)
   }
 
-  // Add actual days
-  for (let i = 1; i <= lastDay.getDate(); i++) {
-    days.push(new Date(year, month, i))
+  // Add all days in the month
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    days.push(new Date(year, month, day))
   }
 
+  console.log('Generated days for calendar:', days.length, 'days')
   return days
 })
+
+const selectDate = (date: Date) => {
+  selectedDate.value = date
+}
 
 const isToday = (date: Date) => {
   const today = new Date()
   return date.toDateString() === today.toDateString()
 }
 
-const isPastDate = (date: Date) => {
+const isPast = (date: Date) => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   return date < today
 }
 
-const selectDate = (date: Date | null) => {
-  if (!date || isPastDate(date)) return
-  selectedDate.value = date
-}
-
 const isDateSelected = (date: Date) => {
-  return selectedDate.value?.toDateString() === date.toDateString()
+  return selectedDate.value && date.toDateString() === selectedDate.value.toDateString()
 }
 
-const previousMonth = () => {
-  currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() - 1)
+const navigateMonth = (direction: number) => {
+  const newMonth = new Date(currentMonth.value)
+  newMonth.setMonth(newMonth.getMonth() + direction)
+  currentMonth.value = newMonth
 }
 
-const nextMonth = () => {
-  currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1)
-}
-
-const monthName = computed(() => {
+const monthYear = computed(() => {
   return currentMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 })
 
-watch(selectedDate, () => {
-  refreshBookings()
+// Watch for changes in active service to update selected date
+watch(activeServiceIndex, (newIndex) => {
+  const serviceBooking = bookingState.value.serviceBookings[newIndex]
+  if (serviceBooking?.date) {
+    selectedDate.value = new Date(serviceBooking.date)
+    currentMonth.value = new Date(serviceBooking.date)
+  } else {
+    selectedDate.value = null
+  }
+})
+
+// Initialize with first service
+onMounted(() => {
+  console.log('StepDateTime mounted, serviceBookings:', bookingState.value.serviceBookings)
+  if (bookingState.value.serviceBookings.length > 0) {
+    goToService(0)
+  }
 })
 </script>
 
 <template>
-  <div class="step-datetime">
+  <div class="step-datetime" v-if="bookingState.serviceBookings.length > 0">
     <div class="step-description">
-      <p class="text-gray-400 mb-6">Select a date and time for your appointment</p>
+      <p class="text-gray-400 mb-6">Select a date and time for each service</p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Service Navigation -->
+    <div v-if="bookingState.serviceBookings.length > 1" class="mb-6">
+      <h3 class="text-lg font-semibold text-white mb-3">Configure Date & Time for Each Service</h3>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="(service, index) in bookingState.serviceBookings"
+          :key="service.serviceId"
+          @click="goToService(index)"
+          :class="[
+            'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+            activeServiceIndex === index
+              ? 'bg-blue-500 text-white'
+              : service.date && service.time
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          ]"
+        >
+          {{ service.serviceName || `Service ${index + 1}` }}
+          <span v-if="service.date && service.time" class="ml-2 text-xs">
+            ✓
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Current Service -->
+    <div v-if="activeService" class="mb-6">
+      <h4 class="text-xl font-semibold text-white mb-2">
+        {{ activeService.serviceName || `Service ${activeServiceIndex + 1}` }}
+      </h4>
+      <p v-if="getServiceDetails(activeService.serviceId)" class="text-gray-400 text-sm">
+        Duration: {{ Math.round(getServiceDetails(activeService.serviceId)?.duration_service_in_s / 3600 * 10) / 10 }}h
+        • Price: ${{ getServiceDetails(activeService.serviceId)?.price }}
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8">
       <!-- Calendar -->
       <div class="calendar-section">
-        <div class="flex items-center justify-between mb-4">
-          <button @click="previousMonth" class="p-2 hover:bg-gray-700 rounded-lg transition">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h3 class="text-lg font-semibold text-white">{{ monthName }}</h3>
-          <button @click="nextMonth" class="p-2 hover:bg-gray-700 rounded-lg transition">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-
-        <div class="calendar-grid grid grid-cols-7 gap-2">
-          <div v-for="day in ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']" :key="day"
-               class="text-center text-sm font-medium text-gray-400 py-2">
-            {{ day }}
+        <div class="bg-gray-700 rounded-lg p-4">
+          <!-- Calendar Header -->
+          <div class="flex items-center justify-between mb-4">
+            <button
+              @click="navigateMonth(-1)"
+              class="p-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h3 class="text-lg font-semibold text-white">{{ monthYear }}</h3>
+            <button
+              @click="navigateMonth(1)"
+              class="p-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
 
-          <div
-            v-for="(date, index) in daysInMonth"
-            :key="index"
-            class="aspect-square flex items-center justify-center rounded-lg text-sm transition-all cursor-pointer"
-            :class="{
-              'bg-blue-500 text-white font-bold': date && isDateSelected(date),
-              'bg-blue-500/20 text-blue-400 font-bold': date && isToday(date) && !isDateSelected(date),
-              'text-gray-400 hover:bg-gray-700': date && !isPastDate(date) && !isDateSelected(date) && !isToday(date),
-              'text-gray-600 cursor-not-allowed': date && isPastDate(date),
-              '': !date
-            }"
-            @click="selectDate(date)"
-          >
-            {{ date?.getDate() }}
+          <!-- Days of Week -->
+          <div class="grid grid-cols-7 gap-1 mb-2">
+            <div v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day"
+                 class="text-center text-sm font-medium text-gray-400 p-2">
+              {{ day }}
+            </div>
+          </div>
+
+          <!-- Calendar Days -->
+          <div class="grid grid-cols-7 gap-1">
+            <template v-for="(day, index) in daysInMonth" :key="index">
+              <button
+                v-if="day"
+                @click="selectDate(day)"
+                :disabled="isPast(day)"
+                :class="[
+                  'aspect-square calendar-day p-2 text-sm rounded-lg transition-all',
+                  isDateSelected(day)
+                    ? 'bg-blue-500 text-white font-bold'
+                    : isToday(day)
+                      ? 'bg-blue-500/20 text-blue-400 font-medium'
+                      : isPast(day)
+                        ? 'text-gray-600 cursor-not-allowed'
+                        : 'text-gray-300 hover:bg-gray-600'
+                ]"
+              >
+                {{ day.getDate() }}
+              </button>
+              <div v-else class="aspect-square"></div>
+            </template>
           </div>
         </div>
       </div>
 
       <!-- Time Slots -->
       <div class="time-slots-section">
-        <h3 class="text-lg font-semibold text-white mb-4">
-          {{ selectedDate ? 'Available Times' : 'Select a date first' }}
-        </h3>
+        <h3 class="text-lg font-semibold text-white mb-4">Available Times</h3>
 
-        <div v-if="selectedDate" class="time-slots-grid grid grid-cols-3 gap-2 max-h-96 overflow-y-auto pr-2">
+        <div v-if="!selectedDate" class="text-center py-8 text-gray-400">
+          Please select a date first
+        </div>
+
+        <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-96 overflow-y-auto">
           <button
             v-for="time in timeSlots"
             :key="time"
-            class="py-3 px-4 rounded-lg text-sm font-medium transition-all relative"
-            :class="{
-              'bg-blue-500 text-white': isSelected(time),
-              'bg-gray-700 text-white hover:bg-gray-600': !isSelected(time) && isTimeSlotAvailable(time),
-              'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50': !isTimeSlotAvailable(time)
-            }"
-            :disabled="!isTimeSlotAvailable(time)"
             @click="selectTimeSlot(time)"
+            :disabled="!isTimeSlotAvailable(time, activeService.serviceId)"
+            :class="[
+              'px-3 py-2 text-sm rounded-lg transition-all',
+              isSelected(time)
+                ? 'bg-blue-500 text-white font-semibold'
+                : isTimeSlotAvailable(time, activeService.serviceId)
+                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-gray-800 text-gray-600 cursor-not-allowed line-through'
+            ]"
           >
             {{ time }}
-            <span v-if="!isTimeSlotAvailable(time)" class="absolute top-1 right-1 text-xs">🔒</span>
           </button>
-        </div>
-
-        <div v-else class="text-center py-8 text-gray-400">
-          Please select a date to see available time slots
-        </div>
-
-        <!-- Legend -->
-        <div v-if="selectedDate" class="mt-4 flex gap-4 text-xs text-gray-400 justify-center">
-          <div class="flex items-center gap-2">
-            <div class="w-4 h-4 bg-gray-700 rounded"></div>
-            <span>Available</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-4 h-4 bg-gray-800 opacity-50 rounded"></div>
-            <span>Booked</span>
-          </div>
         </div>
       </div>
     </div>
 
-    <div v-if="bookingState.selectedDate && bookingState.selectedTime"
-         class="mt-6 p-4 bg-blue-500/10 border border-blue-500 rounded-lg">
-      <p class="text-blue-400 text-center">
-        <span class="font-semibold">Selected:</span>
-        {{ bookingState.selectedDate }} at {{ bookingState.selectedTime }}
-      </p>
+    <!-- Navigation within services -->
+    <div v-if="bookingState.serviceBookings.length > 1" class="flex justify-between mt-6 pt-4 border-t border-gray-700">
+      <button
+        v-if="activeServiceIndex > 0"
+        @click="goToService(activeServiceIndex - 1)"
+        class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+      >
+        ← Previous Service
+      </button>
+      <div v-else></div>
+
+      <button
+        v-if="activeServiceIndex < bookingState.serviceBookings.length - 1"
+        @click="goToService(activeServiceIndex + 1)"
+        class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+      >
+        Next Service →
+      </button>
+    </div>
+
+    <!-- Summary -->
+    <div v-if="bookingState.serviceBookings.some(sb => sb.date && sb.time)" class="mt-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+      <h4 class="text-green-400 font-medium mb-2">Selected Times:</h4>
+      <div class="space-y-1">
+        <div v-for="service in bookingState.serviceBookings.filter(sb => sb.date && sb.time)" :key="service.serviceId"
+             class="text-sm text-gray-300">
+          <span class="text-white font-medium">{{ service.serviceName }}</span>:
+          {{ service.date }} at {{ service.time }}
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.time-slots-grid::-webkit-scrollbar {
-  width: 6px;
+.aspect-square {
+  aspect-ratio: 1 / 1;
+  min-height: 40px;
+  min-width: 40px;
 }
 
-.time-slots-grid::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.5);
-  border-radius: 3px;
-}
-
-.time-slots-grid::-webkit-scrollbar-thumb {
-  background: rgba(75, 85, 99, 0.8);
-  border-radius: 3px;
-}
-
-.time-slots-grid::-webkit-scrollbar-thumb:hover {
-  background: rgba(107, 114, 128, 0.9);
+/* Ensure calendar days are always visible */
+.calendar-day {
+  min-height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

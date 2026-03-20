@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { useBookingFlow } from '~/composables/useBookingFlow'
 
-const { bookingState } = useBookingFlow()
+const { bookingState, updateServiceBookings } = useBookingFlow()
 
 // Fetch services from API (no auth required for public booking)
-const { data: services, pending, error, refresh } = useFetch('/api/services', {
+const { data: services, pending, error, refresh } = useFetch('/api/public-services', {
   default: () => [],
   lazy: true,
   server: false, // Force client-side fetching for public page
   onResponse({ response }) {
-    console.log('📦 Services API Response:', response._data)
+    console.log('📦 Public Services API Response:', response._data)
     console.log('📦 Services count:', response._data?.length)
   },
   onResponseError({ error }) {
-    console.error('❌ Services API Error:', error)
+    console.error('❌ Public Services API Error:', error)
   }
 })
 
@@ -40,6 +40,9 @@ const toggleService = (serviceId: string) => {
   } else {
     bookingState.value.selectedServices.push(serviceId)
   }
+
+  // Update service bookings when services change
+  updateServiceBookings(bookingState.value.selectedServices, services.value)
 }
 
 const isServiceSelected = (serviceId: string) => {

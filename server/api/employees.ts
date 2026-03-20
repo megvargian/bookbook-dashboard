@@ -173,6 +173,9 @@ export default eventHandler(async (event) => {
       // GET - Fetch employees
       const query = getQuery(event)
       const serviceIds = query.service_ids ? String(query.service_ids).split(',').filter(Boolean) : []
+      const date = query.date ? String(query.date) : null
+      const time = query.time ? String(query.time) : null
+      const duration = query.duration ? parseInt(String(query.duration)) : null
 
       if (serviceIds.length > 0) {
         // Filter employees who can provide the selected services
@@ -196,22 +199,92 @@ export default eventHandler(async (event) => {
           return [] // No employees provide these services
         }
 
-        // Fetch employees who provide at least one of the selected services
-        const { data: employees, error } = await supabase
-          .from('employee')
-          .select('*')
-          .in('id', employeeIds)
-          .order('created_at', { ascending: false })
+        // If date, time, and duration are provided, check availability
+        if (date && time && duration) {
+          // Get existing bookings for the specified date and overlapping times
+          const [timeHour, timeMinute] = time.split(':').map(Number)
+          const startTimeInMinutes = timeHour * 60 + timeMinute
+          const endTimeInMinutes = startTimeInMinutes + Math.ceil(duration / 60) // duration in seconds converted to minutes
 
-        if (error) {
-          console.error('Supabase error:', error)
-          throw createError({
-            statusCode: 500,
-            statusMessage: 'Failed to fetch employees'
+          const { data: existingBookings, error: bookingsError } = await supabase
+            .from('bookings')
+            .select('employee_id, start_time, end_time')
+            .eq('booking_date', date)
+            .in('employee_id', employeeIds)
+
+          if (bookingsError) {
+            console.error('Bookings error:', bookingsError)
+            throw createError({
+              statusCode: 500,
+              statusMessage: 'Failed to check employee availability'
+            })
+          }
+
+          // Filter out employees who are not available
+          const busyEmployeeIds = new Set()
+
+          existingBookings?.forEach((booking: any) => {
+            const bookingStartTime = booking.start_time.includes('T')
+              ? booking.start_time.slice(11, 16)
+              : booking.start_time.slice(0, 5)
+
+            const bookingEndTime = booking.end_time.includes('T')
+              ? booking.end_time.slice(11, 16)
+              : booking.end_time.slice(0, 5)
+
+            const [bookingStartHour, bookingStartMinute] = bookingStartTime.split(':').map(Number)
+            const [bookingEndHour, bookingEndMinute] = bookingEndTime.split(':').map(Number)
+
+            const bookingStartInMinutes = bookingStartHour * 60 + bookingStartMinute
+            const bookingEndInMinutes = bookingEndHour * 60 + bookingEndMinute
+
+            // Check for overlap
+            if (startTimeInMinutes < bookingEndInMinutes && endTimeInMinutes > bookingStartInMinutes) {
+              busyEmployeeIds.add(booking.employee_id)
+            }
           })
-        }
 
-        return employees || []
+          // Filter out busy employees
+          const availableEmployeeIds = employeeIds.filter(id => !busyEmployeeIds.has(id))
+
+          if (availableEmployeeIds.length === 0) {
+            return [] // No available employees
+          }
+
+          // Fetch available employees
+          const { data: employees, error } = await supabase
+            .from('employee')
+            .select('*')
+            .in('id', availableEmployeeIds)
+            .order('created_at', { ascending: false })
+
+          if (error) {
+            console.error('Supabase error:', error)
+            throw createError({
+              statusCode: 500,
+              statusMessage: 'Failed to fetch available employees'
+            })
+          }
+
+          return employees || []
+        } else {
+          // No availability check - just return employees who provide the services
+          const { data: employees, error } = await supabase
+            .from('employee')
+            .select('*')
+            .in('id', employeeIds)
+            .order('created_at', { ascending: false })
+
+          if (error) {
+            console.error('Supabase error:', error)
+            throw createError({
+              statusCode: 500,
+              statusMessage: 'Failed to fetch employees'
+            })
+          }
+
+          return employees || []
+        }
       } else {
         // No service filter - return all employees
         const { data: employees, error } = await supabase

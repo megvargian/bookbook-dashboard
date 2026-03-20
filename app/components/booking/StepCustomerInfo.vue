@@ -94,18 +94,18 @@ const submitBooking = async () => {
       customerId = (customerResponse as any).id
     }
 
-    // Create bookings for each selected service using public endpoint
-    const bookingPromises = bookingState.value.selectedServices.map(serviceId => {
+    // Create bookings for each service using public endpoint
+    const bookingPromises = bookingState.value.serviceBookings.map(serviceBooking => {
       return $fetch('/api/public-bookings', {
         method: 'POST',
         body: {
           client_profile_id: bookingState.value.clientProfileId,
           customer_id: customerId,
-          employee_id: bookingState.value.selectedEmployee,
-          service_id: serviceId,
-          booking_date: bookingState.value.selectedDate,
-          start_time: bookingState.value.selectedTime,
-          notes: `Booking created via public booking page`
+          employee_id: serviceBooking.employeeId,
+          service_id: serviceBooking.serviceId,
+          booking_date: serviceBooking.date,
+          start_time: serviceBooking.time,
+          notes: `Booking created via public booking page for ${serviceBooking.serviceName || 'service'}`
         }
       })
     })
@@ -114,7 +114,7 @@ const submitBooking = async () => {
 
     toast.add({
       title: '🎉 Booking Confirmed!',
-      description: `Your appointment${bookingState.value.selectedServices.length > 1 ? 's have' : ' has'} been successfully booked`,
+      description: `Your ${bookingState.value.serviceBookings.length} appointment${bookingState.value.serviceBookings.length > 1 ? 's have' : ' has'} been successfully booked`,
       color: 'success'
     })
 
