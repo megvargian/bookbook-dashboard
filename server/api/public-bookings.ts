@@ -159,16 +159,24 @@ export default defineEventHandler(async (event) => {
     }
 
     // Send email notifications (fire-and-forget — don't fail booking if email fails)
-    const emailPromises = []
+    const emailPromises: Array<{ label: string; promise: Promise<void> }> = []
     if (booking.customer?.email) {
-      emailPromises.push(sendBookingConfirmationToCustomer(booking))
+      emailPromises.push({ label: 'customer', promise: sendBookingConfirmationToCustomer(booking) })
+    } else {
+      console.warn(`[Email] Skipping customer email — no email on booking ${booking.id}`)
     }
     if (clientProfile.email) {
-      emailPromises.push(sendBookingNotificationToAdmin(booking, clientProfile.email))
+      emailPromises.push({ label: 'admin', promise: sendBookingNotificationToAdmin(booking, clientProfile.email) })
+    } else {
+      console.warn(`[Email] Skipping admin email — no email on client_profile ${client_profile_id}`)
     }
     if (emailPromises.length > 0) {
-      Promise.allSettled(emailPromises).catch((err) => {
-        console.error('Email sending error:', err)
+      Promise.allSettled(emailPromises.map(e => e.promise)).then((results) => {
+        results.forEach((result, i) => {
+          if (result.status === 'rejected') {
+            console.error(`[Email] ${emailPromises[i].label} email failed for booking ${booking.id}:`, result.reason)
+          }
+        })
       })
     }
 

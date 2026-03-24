@@ -100,13 +100,20 @@ export async function sendBookingConfirmationToCustomer(booking: any) {
 </body>
 </html>`
 
-  await client.sendEmail({
-    From: `${FROM_NAME} <${FROM_EMAIL}>`,
-    To: customer.email,
-    Subject: `Booking Confirmed – ${service?.name || 'Your Appointment'} on ${formatDate(booking.booking_date)}`,
-    HtmlBody: html,
-    MessageStream: 'outbound'
-  })
+  console.log(`[Email] Sending confirmation to customer: ${customer.email} | booking: ${booking.id}`)
+  try {
+    const result = await client.sendEmail({
+      From: `${FROM_NAME} <${FROM_EMAIL}>`,
+      To: customer.email,
+      Subject: `Booking Confirmed – ${service?.name || 'Your Appointment'} on ${formatDate(booking.booking_date)}`,
+      HtmlBody: html,
+      MessageStream: 'outbound'
+    })
+    console.log(`[Email] Customer confirmation sent — MessageID: ${result.MessageID} | To: ${customer.email}`)
+  } catch (err: any) {
+    console.error(`[Email] Failed to send customer confirmation to ${customer.email}:`, err?.message ?? err)
+    throw err
+  }
 }
 
 export async function sendBookingNotificationToAdmin(booking: any, adminEmail: string) {
@@ -202,11 +209,19 @@ export async function sendBookingNotificationToAdmin(booking: any, adminEmail: s
 </body>
 </html>`
 
-  await client.sendEmail({
-    From: `${FROM_NAME} <${FROM_EMAIL}>`,
-    To: adminEmail,
-    Subject: `New Booking – ${service?.name || 'Appointment'} | ${customer?.full_name || 'Customer'}`,
-    HtmlBody: html,
-    MessageStream: 'outbound'
-  })
+  console.log(`[Email] Sending booking notification to admin: ${adminEmail} | booking: ${booking.id}`)
+  try {
+    const result = await client.sendEmail({
+      From: `${FROM_NAME} <${FROM_EMAIL}>`,
+      To: adminEmail,
+      Subject: `New Booking – ${service?.name || 'Appointment'} | ${customer?.full_name || 'Customer'}`,
+      HtmlBody: html,
+      MessageStream: 'outbound'
+    })
+    console.log(`[Email] Admin notification sent — MessageID: ${result.MessageID} | To: ${adminEmail}`)
+  } catch (err: any) {
+    console.error(`[Email] Failed to send admin notification to ${adminEmail}:`, err?.message ?? err)
+    throw err
+  }
+}
 }
