@@ -159,25 +159,49 @@ export default defineEventHandler(async (event) => {
     }
 
     // Send email notifications (fire-and-forget — don't fail booking if email fails)
+    console.log('[Booking] ==================== EMAIL NOTIFICATION PHASE ====================')
+    console.log('[Booking] Preparing email notifications for booking:', booking.id)
+    console.log('[Booking] Customer email available:', !!booking.customer?.email, '|', booking.customer?.email || 'MISSING')
+    console.log('[Booking] Admin email available:', !!clientProfile.email, '|', clientProfile.email || 'MISSING')
+
     const emailPromises: Array<{ label: string; promise: Promise<void> }> = []
+
     if (booking.customer?.email) {
+      console.log('[Booking] ✅ Adding customer email to queue:', booking.customer.email)
       emailPromises.push({ label: 'customer', promise: sendBookingConfirmationToCustomer(booking) })
     } else {
-      console.warn(`[Email] Skipping customer email — no email on booking ${booking.id}`)
+      console.warn(`[Booking] ⚠️ Skipping customer email — no email on booking ${booking.id}`)
+      console.warn(`[Booking] Customer object:`, booking.customer ? JSON.stringify(booking.customer, null, 2) : 'NULL/MISSING')
     }
+
     if (clientProfile.email) {
+      console.log('[Booking] ✅ Adding admin email to queue:', clientProfile.email)
       emailPromises.push({ label: 'admin', promise: sendBookingNotificationToAdmin(booking, clientProfile.email) })
     } else {
-      console.warn(`[Email] Skipping admin email — no email on client_profile ${client_profile_id}`)
+      console.warn(`[Booking] ⚠️ Skipping admin email — no email on client_profile ${client_profile_id}`)
+      console.warn(`[Booking] ClientProfile object:`, JSON.stringify(clientProfile, null, 2))
     }
+
     if (emailPromises.length > 0) {
+      console.log(`[Booking] Executing ${emailPromises.length} email notifications...`)
       Promise.allSettled(emailPromises.map(e => e.promise)).then((results) => {
+        console.log('[Booking] ==================== EMAIL RESULTS ====================')
         results.forEach((result, i) => {
+          const emailType = emailPromises[i].label
           if (result.status === 'rejected') {
-            console.error(`[Email] ${emailPromises[i].label} email failed for booking ${booking.id}:`, result.reason)
+            console.error(`[Booking] ❌ ${emailType} email FAILED for booking ${booking.id}:`)
+            console.error(`[Booking] Error:`, result.reason)
+            console.error(`[Booking] Error stack:`, result.reason?.stack)
+          } else {
+            console.log(`[Booking] ✅ ${emailType} email SUCCESS for booking ${booking.id}`)
           }
         })
+        console.log('[Booking] ==================== EMAIL RESULTS END ====================')
+      }).catch((error) => {
+        console.error('[Booking] Unexpected error in email promises handling:', error)
       })
+    } else {
+      console.warn('[Booking] ⚠️ No emails will be sent - no valid email addresses found')
     }
 
     return booking

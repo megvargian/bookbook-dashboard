@@ -6,7 +6,27 @@ const FROM_NAME = 'Bookbook'
 
 function getClient() {
   const config = useRuntimeConfig()
-  return new postmark.ServerClient(config.postmarkApiKey as string)
+
+  // Enhanced logging for configuration validation
+  console.log('[Email] Initializing Postmark client...')
+  console.log('[Email] FROM_EMAIL:', FROM_EMAIL)
+  console.log('[Email] FROM_NAME:', FROM_NAME)
+  console.log('[Email] POSTMARK_API_KEY exists:', !!config.postmarkApiKey)
+  console.log('[Email] POSTMARK_API_KEY length:', config.postmarkApiKey ? config.postmarkApiKey.length : 0)
+
+  if (!config.postmarkApiKey) {
+    console.error('[Email] CRITICAL ERROR: POSTMARK_API_KEY is not set in environment variables')
+    throw new Error('POSTMARK_API_KEY is required but not found in environment')
+  }
+
+  try {
+    const client = new postmark.ServerClient(config.postmarkApiKey as string)
+    console.log('[Email] Postmark client initialized successfully')
+    return client
+  } catch (error) {
+    console.error('[Email] CRITICAL ERROR: Failed to initialize Postmark client:', error)
+    throw error
+  }
 }
 
 function formatDate(dateStr: string) {
@@ -23,10 +43,44 @@ function formatPrice(price: number) {
 }
 
 export async function sendBookingConfirmationToCustomer(booking: any) {
-  const client = getClient()
+  console.log('[Email] ==================== CUSTOMER EMAIL START ====================')
+  console.log('[Email] Function: sendBookingConfirmationToCustomer called')
+  console.log('[Email] Booking ID:', booking?.id || 'MISSING')
+  console.log('[Email] Booking object keys:', Object.keys(booking || {}))
+
+  // Log booking structure for debugging
+  console.log('[Email] Full booking object:', JSON.stringify(booking, null, 2))
+
   const customer = booking.customer
   const service = booking.service
   const employee = booking.employee
+
+  // Enhanced customer validation
+  console.log('[Email] Customer object:', customer ? JSON.stringify(customer, null, 2) : 'MISSING/NULL')
+  console.log('[Email] Customer email:', customer?.email || 'MISSING/UNDEFINED')
+  console.log('[Email] Customer name:', customer?.full_name || 'MISSING/UNDEFINED')
+
+  if (!customer) {
+    console.error('[Email] CRITICAL ERROR: Customer object is missing from booking')
+    throw new Error('Customer data is required but missing from booking')
+  }
+
+  if (!customer.email) {
+    console.error('[Email] CRITICAL ERROR: Customer email is missing')
+    console.error('[Email] Customer data available:', JSON.stringify(customer, null, 2))
+    throw new Error('Customer email is required but missing')
+  }
+
+  // Service validation
+  console.log('[Email] Service object:', service ? JSON.stringify(service, null, 2) : 'MISSING/NULL')
+  if (!service) {
+    console.warn('[Email] WARNING: Service object is missing from booking')
+  }
+
+  // Employee validation
+  console.log('[Email] Employee object:', employee ? JSON.stringify(employee, null, 2) : 'MISSING/NULL')
+
+  const client = getClient()
 
   const html = `
 <!DOCTYPE html>
@@ -100,27 +154,71 @@ export async function sendBookingConfirmationToCustomer(booking: any) {
 </body>
 </html>`
 
+  // Log email details before sending
+  const emailPayload = {
+    From: `${FROM_NAME} <${FROM_EMAIL}>`,
+    To: customer.email,
+    Subject: `Booking Confirmed – ${service?.name || 'Your Appointment'} on ${formatDate(booking.booking_date)}`,
+    HtmlBody: html,
+    MessageStream: 'outbound'
+  }
+
+  console.log('[Email] Email payload prepared:')
+  console.log('[Email] From:', emailPayload.From)
+  console.log('[Email] To:', emailPayload.To)
+  console.log('[Email] Subject:', emailPayload.Subject)
+  console.log('[Email] MessageStream:', emailPayload.MessageStream)
+  console.log('[Email] HtmlBody length:', html.length, 'characters')
+
   console.log(`[Email] Sending confirmation to customer: ${customer.email} | booking: ${booking.id}`)
   try {
-    const result = await client.sendEmail({
-      From: `${FROM_NAME} <${FROM_EMAIL}>`,
-      To: customer.email,
-      Subject: `Booking Confirmed – ${service?.name || 'Your Appointment'} on ${formatDate(booking.booking_date)}`,
-      HtmlBody: html,
-      MessageStream: 'outbound'
-    })
-    console.log(`[Email] Customer confirmation sent — MessageID: ${result.MessageID} | To: ${customer.email}`)
+    console.log('[Email] Calling Postmark sendEmail...')
+    const result = await client.sendEmail(emailPayload)
+    console.log(`[Email] ✅ SUCCESS: Customer confirmation sent!`)
+    console.log(`[Email] MessageID: ${result.MessageID}`)
+    console.log(`[Email] To: ${customer.email}`)
+    console.log(`[Email] ErrorCode: ${result.ErrorCode || 'none'}`)
+    console.log(`[Email] Message: ${result.Message || 'none'}`)
+    console.log('[Email] Full Postmark response:', JSON.stringify(result, null, 2))
+    console.log('[Email] ==================== CUSTOMER EMAIL SUCCESS ====================')
   } catch (err: any) {
-    console.error(`[Email] Failed to send customer confirmation to ${customer.email}:`, err?.message ?? err)
+    console.error('[Email] ==================== CUSTOMER EMAIL FAILED ====================')
+    console.error(`[Email] ❌ FAILED to send customer confirmation to ${customer.email}`)
+    console.error('[Email] Error type:', typeof err)
+    console.error('[Email] Error message:', err?.message || 'No error message')
+    console.error('[Email] Error code:', err?.code || 'No error code')
+    console.error('[Email] Error details:', err?.details || 'No error details')
+    console.error('[Email] Full error object:', JSON.stringify(err, null, 2))
+    console.error('[Email] Error stack:', err?.stack)
+    console.error('[Email] ==================== CUSTOMER EMAIL ERROR END ====================')
     throw err
   }
 }
 
 export async function sendBookingNotificationToAdmin(booking: any, adminEmail: string) {
-  const client = getClient()
+  console.log('[Email] ==================== ADMIN EMAIL START ====================')
+  console.log('[Email] Function: sendBookingNotificationToAdmin called')
+  console.log('[Email] Booking ID:', booking?.id || 'MISSING')
+  console.log('[Email] Admin email parameter:', adminEmail || 'MISSING/UNDEFINED')
+
+  if (!adminEmail) {
+    console.error('[Email] CRITICAL ERROR: Admin email parameter is missing or empty')
+    throw new Error('Admin email is required but was not provided')
+  }
+
+  // Log booking structure for debugging
+  console.log('[Email] Booking object keys:', Object.keys(booking || {}))
+
   const customer = booking.customer
   const service = booking.service
   const employee = booking.employee
+
+  // Enhanced validation
+  console.log('[Email] Customer object:', customer ? JSON.stringify(customer, null, 2) : 'MISSING/NULL')
+  console.log('[Email] Service object:', service ? JSON.stringify(service, null, 2) : 'MISSING/NULL')
+  console.log('[Email] Employee object:', employee ? JSON.stringify(employee, null, 2) : 'MISSING/NULL')
+
+  const client = getClient()
 
   const html = `
 <!DOCTYPE html>
@@ -209,18 +307,43 @@ export async function sendBookingNotificationToAdmin(booking: any, adminEmail: s
 </body>
 </html>`
 
+  // Log email details before sending
+  const emailPayload = {
+    From: `${FROM_NAME} <${FROM_EMAIL}>`,
+    To: adminEmail,
+    Subject: `New Booking – ${service?.name || 'Appointment'} | ${customer?.full_name || 'Customer'}`,
+    HtmlBody: html,
+    MessageStream: 'outbound'
+  }
+
+  console.log('[Email] Admin email payload prepared:')
+  console.log('[Email] From:', emailPayload.From)
+  console.log('[Email] To:', emailPayload.To)
+  console.log('[Email] Subject:', emailPayload.Subject)
+  console.log('[Email] MessageStream:', emailPayload.MessageStream)
+  console.log('[Email] HtmlBody length:', html.length, 'characters')
+
   console.log(`[Email] Sending booking notification to admin: ${adminEmail} | booking: ${booking.id}`)
   try {
-    const result = await client.sendEmail({
-      From: `${FROM_NAME} <${FROM_EMAIL}>`,
-      To: adminEmail,
-      Subject: `New Booking – ${service?.name || 'Appointment'} | ${customer?.full_name || 'Customer'}`,
-      HtmlBody: html,
-      MessageStream: 'outbound'
-    })
-    console.log(`[Email] Admin notification sent — MessageID: ${result.MessageID} | To: ${adminEmail}`)
+    console.log('[Email] Calling Postmark sendEmail for admin...')
+    const result = await client.sendEmail(emailPayload)
+    console.log(`[Email] ✅ SUCCESS: Admin notification sent!`)
+    console.log(`[Email] MessageID: ${result.MessageID}`)
+    console.log(`[Email] To: ${adminEmail}`)
+    console.log(`[Email] ErrorCode: ${result.ErrorCode || 'none'}`)
+    console.log(`[Email] Message: ${result.Message || 'none'}`)
+    console.log('[Email] Full Postmark response:', JSON.stringify(result, null, 2))
+    console.log('[Email] ==================== ADMIN EMAIL SUCCESS ====================')
   } catch (err: any) {
-    console.error(`[Email] Failed to send admin notification to ${adminEmail}:`, err?.message ?? err)
+    console.error('[Email] ==================== ADMIN EMAIL FAILED ====================')
+    console.error(`[Email] ❌ FAILED to send admin notification to ${adminEmail}`)
+    console.error('[Email] Error type:', typeof err)
+    console.error('[Email] Error message:', err?.message || 'No error message')
+    console.error('[Email] Error code:', err?.code || 'No error code')
+    console.error('[Email] Error details:', err?.details || 'No error details')
+    console.error('[Email] Full error object:', JSON.stringify(err, null, 2))
+    console.error('[Email] Error stack:', err?.stack)
+    console.error('[Email] ==================== ADMIN EMAIL ERROR END ====================')
     throw err
   }
 }
