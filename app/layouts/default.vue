@@ -2,7 +2,6 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import { useUserStore } from '~/stores/user'
 
-const route = useRoute()
 const toast = useToast()
 const userStore = useUserStore()
 
@@ -89,16 +88,6 @@ const groups = computed(() => [{
   id: 'links',
   label: 'Go to',
   items: links.value.flat()
-}, {
-  id: 'code',
-  label: 'Code',
-  items: [{
-    id: 'source',
-    label: 'View page source',
-    icon: 'i-simple-icons-github',
-    to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${route.path === '/' ? '/index' : route.path}.vue`,
-    target: '_blank'
-  }]
 }])
 
 onMounted(async () => {

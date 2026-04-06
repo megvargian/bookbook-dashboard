@@ -7,30 +7,20 @@ const userStore = useUserStore()
 const supabase = useSupabaseClient()
 const toast = useToast()
 
-// Wait for user store to initialize
 await userStore.fetchClientProfile()
 
-// Role-based access control
 const isAdmin = computed(() => userStore.clientProfile?.role === 'admin' && userStore.clientProfile?.user_type === 'client')
 const isEmployee = computed(() => userStore.clientProfile?.user_type === 'employee')
 
 if (!isAdmin.value && !isEmployee.value) {
-  throw createError({
-    statusCode: 403,
-    statusMessage: 'Access denied. Admin or employee access required.'
-  })
+  throw createError({ statusCode: 403, statusMessage: 'Access denied. Admin or employee access required.' })
 }
 
-// Data fetching
-const { data: bookings, refresh: refreshBookings } = await useFetch<Booking[]>('/api/bookings', {
-  default: () => []
-})
-
+const { data: bookings, refresh: refreshBookings } = await useFetch<Booking[]>('/api/bookings', { default: () => [] })
 const { data: employees } = await useFetch('/api/employees', { default: () => [] })
 const { data: services } = await useFetch('/api/services', { default: () => [] })
 const { data: clients } = await useFetch('/api/customers', { default: () => [] })
 
-// Form state
 const showCreateModal = ref(false)
 const loading = ref(false)
 
@@ -52,48 +42,37 @@ const newBooking = ref<CreateBookingData>({
   notes: ''
 })
 
-// Calendar state
 const currentDate = ref(new Date())
 const selectedDate = ref(new Date())
 
-// Helper function to format timestamps for display
 const formatTimeFromTimestamp = (timestamp: string) => {
   if (!timestamp) return ''
   if (timestamp.includes('T')) {
-    // It's a timestamptz from database
-    const date = new Date(timestamp)
-    return date.toTimeString().slice(0, 5) // HH:MM format
+    return new Date(timestamp).toTimeString().slice(0, 5)
   }
-  // Legacy format - just return as is
   return timestamp
 }
 
-// Calendar computed values
-const currentMonth = computed(() => {
-  const month = currentDate.value.getMonth()
-  const year = currentDate.value.getFullYear()
-  return new Date(year, month, 1)
-})
-
+// ── Main calendar ──────────────────────────────────────────
 const daysInMonth = computed(() => {
   const year = currentDate.value.getFullYear()
   const month = currentDate.value.getMonth()
   return new Date(year, month + 1, 0).getDate()
 })
 
+// Monday-first offset
 const firstDayOfWeek = computed(() => {
-  const year = currentDate.value.getFullYear()
-  const month = currentDate.value.getMonth()
-  return new Date(year, month, 1).getDay()
+  const day = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth(), 1).getDay()
+  return day === 0 ? 6 : day - 1
 })
 
-const monthName = computed(() => {
-  return currentDate.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-})
+const monthName = computed(() =>
+  currentDate.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+)
 
 const calendarDays = computed(() => {
-  const days = []
-  const totalCells = 42 // 6 weeks × 7 days
+  const days: { date: number; isCurrentMonth: boolean; fullDate: Date }[] = []
+  const totalCells = 42
 
   // Previous month's trailing days
   for (let i = firstDayOfWeek.value - 1; i >= 0; i--) {
@@ -128,22 +107,22 @@ const calendarDays = computed(() => {
   return days
 })
 
-const bookingsForDate = (date: Date) => {
-  if (!bookings.value) return []
+const bookingsForDate = (date: Date | null) => {
+  if (!date || !bookings.value) return []
   const dateString = date.toISOString().split('T')[0]
   return bookings.value.filter(booking => booking.booking_date === dateString)
 }
 
-const isToday = (date: Date) => {
-  const today = new Date()
-  return date.toDateString() === today.toDateString()
+const isToday = (date: Date | null) => {
+  if (!date) return false
+  return date.toDateString() === new Date().toDateString()
 }
 
-const isSelected = (date: Date) => {
+const isSelected = (date: Date | null) => {
+  if (!date) return false
   return date.toDateString() === selectedDate.value.toDateString()
 }
 
-// Navigation functions
 const previousMonth = () => {
   currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() - 1, 1)
 }
@@ -152,20 +131,53 @@ const nextMonth = () => {
   currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1)
 }
 
-const selectDate = (date: Date) => {
+const selectDate = (date: Date | null) => {
+  if (!date) return
   selectedDate.value = date
+  // Sync main calendar to same month
+  currentDate.value = new Date(date.getFullYear(), date.getMonth(), 1)
   if (isAdmin.value) {
     newBooking.value.booking_date = date.toISOString().split('T')[0]
   }
 }
 
-// Booking functions
+// ── Mini calendar ──────────────────────────────────────────
+const miniCalDate = ref(new Date())
+
+const miniCalMonthName = computed(() =>
+  miniCalDate.value.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+)
+
+const miniCalDays = computed(() => {
+  const year = miniCalDate.value.getFullYear()
+  const month = miniCalDate.value.getMonth()
+  const firstDay = new Date(year, month, 1).getDay()
+  const offset = firstDay === 0 ? 6 : firstDay - 1
+  const daysInMon = new Date(year, month + 1, 0).getDate()
+  const cells: (Date | null)[] = []
+  for (let i = 0; i < offset; i++) cells.push(null)
+  for (let d = 1; d <= daysInMon; d++) cells.push(new Date(year, month, d))
+  return cells
+})
+
+const prevMiniMonth = () => {
+  miniCalDate.value = new Date(miniCalDate.value.getFullYear(), miniCalDate.value.getMonth() - 1, 1)
+}
+
+const nextMiniMonth = () => {
+  miniCalDate.value = new Date(miniCalDate.value.getFullYear(), miniCalDate.value.getMonth() + 1, 1)
+}
+
+const hasBookings = (date: Date | null) => {
+  if (!date || !bookings.value) return false
+  const ds = date.toISOString().split('T')[0]
+  return bookings.value.some(b => b.booking_date === ds)
+}
+
+// ── Booking CRUD ──────────────────────────────────────────
 const openCreateModal = (date?: Date) => {
   if (!isAdmin.value) return
-
-  if (date) {
-    selectDate(date)
-  }
+  if (date) selectDate(date)
   showCreateModal.value = true
 }
 
@@ -186,9 +198,7 @@ const createBooking = async () => {
   loading.value = true
   try {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      throw new Error('No active session')
-    }
+    if (!session) throw new Error('No active session')
 
     // Create payload with time in HH:MM format (backend will convert to timestamptz)
     const bookingPayload = {
@@ -235,168 +245,249 @@ const createBooking = async () => {
 
 // Initialize form when modal opens
 watch(showCreateModal, (isOpen) => {
-  if (isOpen) {
-    resetForm()
-  }
+  if (isOpen) resetForm()
 })
 </script>
 
 <template>
-  <div>
-    <UPageCard
-      title="Calendar"
-      :description="isAdmin ? 'View and manage bookings' : 'View your assigned bookings'"
-      variant="naked"
-      orientation="horizontal"
-      class="mb-4"
-    >
-      <UButton
-        v-if="isAdmin"
-        label="New Booking"
-        color="neutral"
-        class="w-fit lg:ms-auto"
-        @click="openCreateModal()"
-      />
-    </UPageCard>
-
-    <!-- Calendar Navigation -->
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-        {{ monthName }}
-      </h2>
-      <div class="flex items-center gap-2">
-        <UButton
-          variant="outline"
-          size="sm"
-          icon="i-lucide-chevron-left"
-          @click="previousMonth"
-        />
-        <UButton
-          variant="outline"
-          size="sm"
-          @click="currentDate = new Date()"
-        >
-          Today
+  <div class="flex flex-col gap-4">
+    <!-- Page header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-semibold text-navy-500">Calendar</h2>
+        <p class="text-sm text-slate-400 mt-0.5">
+          {{ isAdmin ? 'View and manage bookings' : 'View your assigned bookings' }}
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <UButton variant="outline" size="sm" icon="i-lucide-download" color="neutral">
+          Export
         </UButton>
         <UButton
-          variant="outline"
+          v-if="isAdmin"
           size="sm"
-          icon="i-lucide-chevron-right"
-          @click="nextMonth"
-        />
+          icon="i-lucide-plus"
+          color="primary"
+          @click="openCreateModal()"
+        >
+          Add Event
+        </UButton>
       </div>
     </div>
 
-    <!-- Calendar Grid -->
-    <UCard class="overflow-hidden">
-      <!-- Week Headers -->
-      <div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
-        <div
-          v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']"
-          :key="day"
-          class="p-3 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
-        >
-          {{ day }}
-        </div>
-      </div>
-
-      <!-- Calendar Days -->
-      <div class="grid grid-cols-7">
-        <div
-          v-for="(day, index) in calendarDays"
-          :key="index"
-          class="min-h-24 border-r border-b border-gray-200 dark:border-gray-700 p-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          :class="[
-            !day.isCurrentMonth && 'bg-gray-50 dark:bg-gray-900 text-gray-400',
-            isToday(day.fullDate) && 'bg-blue-50 dark:bg-blue-900/20',
-            isSelected(day.fullDate) && 'ring-2 ring-blue-500'
-          ]"
-          @click="selectDate(day.fullDate)"
-          @dblclick="openCreateModal(day.fullDate)"
-        >
-          <div class="flex items-start justify-between">
-            <span
-              class="text-sm font-medium"
-              :class="[
-                !day.isCurrentMonth && 'text-gray-400',
-                isToday(day.fullDate) && 'text-blue-600 dark:text-blue-400'
-              ]"
+    <!-- Two-column layout: mini cal + filter | main calendar -->
+    <div class="flex gap-3">
+      <!-- ── LEFT: Mini calendar + staff filter ────────────── -->
+      <div class="w-52 flex-shrink-0 flex flex-col gap-3">
+        <!-- Mini Calendar Card -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
+          <!-- Month nav -->
+          <div class="flex items-center justify-between mb-2.5">
+            <button
+              class="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-400 text-xs transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+              @click="prevMiniMonth"
             >
-              {{ day.date }}
+              ‹
+            </button>
+            <span class="text-xs font-semibold text-slate-700">{{ miniCalMonthName }}</span>
+            <button
+              class="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-400 text-xs transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+              @click="nextMiniMonth"
+            >
+              ›
+            </button>
+          </div>
+
+          <!-- Day headers Mo Tu We Th Fr Sa Su -->
+          <div class="grid grid-cols-7 mb-0.5">
+            <div
+              v-for="d in ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']"
+              :key="d"
+              class="w-6 text-center text-[8px] font-bold text-slate-400 uppercase py-0.5"
+            >
+              {{ d }}
+            </div>
+          </div>
+
+          <!-- Day cells -->
+          <div class="grid grid-cols-7" style="gap:1px">
+            <template v-for="(date, i) in miniCalDays" :key="i">
+              <div v-if="!date" class="w-6 h-6" />
+              <button
+                v-else
+                class="relative w-6 h-6 flex items-center justify-center rounded-[5px] text-[10px] font-medium transition-all"
+                :class="[
+                  isSelected(date)
+                    ? 'bg-navy-500 text-white font-bold'
+                    : isToday(date)
+                      ? 'text-navy-500 font-bold hover:bg-slate-100'
+                      : 'text-slate-400 hover:bg-slate-100 hover:text-navy-500'
+                ]"
+                @click="selectDate(date)"
+              >
+                {{ date.getDate() }}
+                <span
+                  v-if="isToday(date) && !isSelected(date)"
+                  class="absolute bottom-[1px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-navy-500"
+                />
+                <span
+                  v-if="isToday(date) && isSelected(date)"
+                  class="absolute bottom-[1px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-white"
+                />
+                <span
+                  v-if="hasBookings(date) && !isSelected(date)"
+                  class="absolute top-[2px] right-[2px] w-[3px] h-[3px] rounded-full bg-navy-400"
+                />
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <!-- Filter by staff -->
+        <div
+          v-if="isAdmin && employees && (employees as any[]).length"
+          class="bg-white rounded-xl border border-slate-200 shadow-sm p-3"
+        >
+          <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">
+            Filter by staff
+          </p>
+          <div
+            v-for="emp in (employees as any[])"
+            :key="emp.id"
+            class="flex items-center gap-2 py-1 cursor-pointer"
+          >
+            <div class="w-3.5 h-3.5 rounded-sm border-2 border-navy-500 bg-navy-500 flex items-center justify-center flex-shrink-0">
+              <span class="text-white text-[7px] font-bold">✓</span>
+            </div>
+            <div class="w-2 h-2 rounded-full bg-navy-400 flex-shrink-0" />
+            <span class="text-xs font-medium text-slate-700 flex-1 truncate">
+              {{ emp.first_name }} {{ emp.last_name?.charAt(0) }}.
             </span>
-            <UButton
-              v-if="isAdmin && day.isCurrentMonth"
-              variant="ghost"
-              size="xs"
-              icon="i-lucide-plus"
-              class="opacity-0 group-hover:opacity-100"
-              @click.stop="openCreateModal(day.fullDate)"
-            />
           </div>
+        </div>
+      </div>
 
-          <!-- Bookings for this date -->
-          <div class="mt-1 space-y-1">
+      <!-- ── RIGHT: Main calendar ────────────────────────── -->
+      <div class="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+        <!-- Toolbar -->
+        <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 flex-shrink-0">
+          <button
+            class="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-md bg-white text-slate-700 hover:bg-slate-50 transition-all"
+            @click="selectDate(new Date())"
+          >
+            Today
+          </button>
+          <button
+            class="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+            @click="previousMonth"
+          >
+            ‹
+          </button>
+          <button
+            class="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+            @click="nextMonth"
+          >
+            ›
+          </button>
+          <span class="text-[15px] font-semibold text-slate-700 ml-1">{{ monthName }}</span>
+        </div>
+
+        <!-- Week day headers: Mon–Sun -->
+        <div class="grid grid-cols-7 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+          <div
+            v-for="day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']"
+            :key="day"
+            class="p-2 text-center text-[9px] font-bold text-slate-400 uppercase tracking-wider"
+          >
+            {{ day }}
+          </div>
+        </div>
+
+        <!-- Calendar grid -->
+        <div class="overflow-auto">
+          <div class="grid grid-cols-7" style="grid-auto-rows: minmax(88px, 1fr)">
             <div
-              v-for="booking in bookingsForDate(day.fullDate).slice(0, 3)"
-              :key="booking.id"
-              class="text-xs p-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 truncate"
+              v-for="(day, index) in calendarDays"
+              :key="index"
+              class="bg-white border-r border-b border-slate-100 p-1.5 cursor-pointer transition-colors overflow-hidden"
+              :class="[
+                !day.isCurrentMonth ? '!bg-slate-50' : 'hover:!bg-slate-50',
+                isSelected(day.fullDate) && day.isCurrentMonth ? 'ring-2 ring-inset ring-navy-500' : ''
+              ]"
+              @click="selectDate(day.fullDate)"
+              @dblclick="openCreateModal(day.fullDate)"
             >
-              {{ formatTimeFromTimestamp(booking.start_time) }} - {{ booking.service?.name }}
-            </div>
-            <div
-              v-if="bookingsForDate(day.fullDate).length > 3"
-              class="text-xs text-gray-500 dark:text-gray-400"
-            >
-              +{{ bookingsForDate(day.fullDate).length - 3 }} more
+              <!-- Date number -->
+              <div
+                class="mb-1 w-5 h-5 flex items-center justify-center rounded-full text-[11px] font-semibold"
+                :class="[
+                  !day.isCurrentMonth ? 'text-slate-300' : 'text-slate-700',
+                  isToday(day.fullDate) ? '!bg-navy-500 !text-white' : ''
+                ]"
+              >
+                {{ day.date }}
+              </div>
+
+              <!-- Booking pills -->
+              <div class="space-y-px">
+                <div
+                  v-for="booking in bookingsForDate(day.fullDate).slice(0, 2)"
+                  :key="booking.id"
+                  class="text-[10px] font-semibold px-1.5 py-px rounded truncate"
+                  style="background: #EEF2F8; color: #1B2B4B; border-left: 2px solid #1B2B4B"
+                >
+                  {{ formatTimeFromTimestamp(booking.start_time) }} · {{ booking.service?.name }}
+                </div>
+                <div
+                  v-if="bookingsForDate(day.fullDate).length > 2"
+                  class="text-[10px] font-semibold text-navy-500 pl-1"
+                >
+                  +{{ bookingsForDate(day.fullDate).length - 2 }} more
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </UCard>
+    </div>
 
-    <!-- Selected Date Info -->
-    <div v-if="bookingsForDate(selectedDate).length" class="mt-6">
-      <h3 class="text-lg font-semibold mb-3">
-        Bookings for {{ selectedDate.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }) }}
+    <!-- Selected date bookings list -->
+    <div
+      v-if="bookingsForDate(selectedDate).length"
+      class="bg-white rounded-xl border border-slate-200 shadow-sm p-4"
+    >
+      <h3 class="text-sm font-semibold text-navy-500 mb-3">
+        Bookings for {{ selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
       </h3>
-      <div class="grid gap-3">
-        <UCard
+      <div class="grid gap-2">
+        <div
           v-for="booking in bookingsForDate(selectedDate)"
           :key="booking.id"
-          class="p-4"
+          class="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50"
         >
-          <div class="flex items-center justify-between">
-            <div>
-              <h4 class="font-medium">{{ booking.service?.name }}</h4>
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                {{ formatTimeFromTimestamp(booking.start_time) }} - {{ formatTimeFromTimestamp(booking.end_time) }}
-              </p>
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                Client: {{ booking.client_profile?.first_name }} {{ booking.client_profile?.last_name }}
-              </p>
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                Employee: {{ booking.employee?.first_name }} {{ booking.employee?.last_name }}
-              </p>
-            </div>
-            <div class="text-right">
-              <p class="font-medium">${{ booking.total_price }}</p>
-              <UBadge
-                :color="booking.status === 'confirmed' ? 'green' : booking.status === 'pending' ? 'yellow' : booking.status === 'completed' ? 'blue' : 'red'"
-                class="capitalize"
-              >
-                {{ booking.status }}
-              </UBadge>
-            </div>
+          <div>
+            <p class="text-sm font-semibold text-slate-800">{{ booking.service?.name }}</p>
+            <p class="text-xs text-slate-500 mt-0.5">
+              {{ formatTimeFromTimestamp(booking.start_time) }}–{{ formatTimeFromTimestamp(booking.end_time) }}
+              · {{ booking.client_profile?.first_name }} {{ booking.client_profile?.last_name }}
+              · {{ booking.employee?.first_name }} {{ booking.employee?.last_name }}
+            </p>
           </div>
-          <p v-if="booking.notes" class="text-sm text-gray-600 dark:text-gray-400 mt-2">
-            Notes: {{ booking.notes }}
-          </p>
-        </UCard>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-navy-500">${{ booking.total_price }}</span>
+            <span
+              class="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize"
+              :class="{
+                'bg-emerald-100 text-emerald-700': booking.status === 'confirmed',
+                'bg-amber-100 text-amber-700': booking.status === 'pending',
+                'bg-slate-100 text-slate-500': booking.status === 'completed',
+                'bg-red-100 text-red-600': booking.status === 'cancelled'
+              }"
+            >
+              {{ booking.status }}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -405,9 +496,7 @@ watch(showCreateModal, (isOpen) => {
       <UCard>
         <template #header>
           <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-              Create New Booking
-            </h3>
+            <h3 class="text-base font-semibold">Create New Booking</h3>
             <UButton
               color="neutral"
               variant="ghost"
@@ -417,19 +506,11 @@ watch(showCreateModal, (isOpen) => {
           </div>
         </template>
 
-        <UForm
-          :schema="bookingSchema"
-          :state="newBooking"
-          class="space-y-4"
-          @submit="createBooking"
-        >
+        <UForm :schema="bookingSchema" :state="newBooking" class="space-y-4" @submit="createBooking">
           <UFormField name="client_id" label="Client" required>
             <USelectMenu
               v-model="newBooking.client_id"
-              :options="clients.map(client => ({
-                label: `${client.first_name} ${client.last_name}`,
-                value: client.id
-              }))"
+              :options="(clients as any[]).map(c => ({ label: `${c.first_name} ${c.last_name}`, value: c.id }))"
               placeholder="Select client"
             />
           </UFormField>
@@ -437,10 +518,7 @@ watch(showCreateModal, (isOpen) => {
           <UFormField name="service_id" label="Service" required>
             <USelectMenu
               v-model="newBooking.service_id"
-              :options="services.map(service => ({
-                label: `${service.name} - $${service.price}`,
-                value: service.id
-              }))"
+              :options="(services as any[]).map(s => ({ label: `${s.name} - $${s.price}`, value: s.id }))"
               placeholder="Select service"
             />
           </UFormField>
@@ -448,10 +526,7 @@ watch(showCreateModal, (isOpen) => {
           <UFormField name="employee_id" label="Employee" required>
             <USelectMenu
               v-model="newBooking.employee_id"
-              :options="employees.map(employee => ({
-                label: `${employee.first_name} ${employee.last_name}`,
-                value: employee.id
-              }))"
+              :options="(employees as any[]).map(e => ({ label: `${e.first_name} ${e.last_name}`, value: e.id }))"
               placeholder="Select employee"
             />
           </UFormField>
@@ -460,7 +535,6 @@ watch(showCreateModal, (isOpen) => {
             <UFormField name="booking_date" label="Date" required>
               <UInput v-model="newBooking.booking_date" type="date" />
             </UFormField>
-
             <UFormField name="start_time" label="Start Time" required>
               <UInput v-model="newBooking.start_time" type="time" />
             </UFormField>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const colorMode = useColorMode()
+colorMode.preference = 'light'
 const userStore = useUserStore()
 const supabase = useSupabaseClient()
 

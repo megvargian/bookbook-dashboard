@@ -222,23 +222,23 @@ const currentMonthDays = computed(() => {
   const monthStart = currentMonthStart.value
   const firstDayOfWeek = monthStart.getDay() // 0 = Sunday
   const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate()
-  
+
   const days = []
-  
+
   // Add padding days from previous month
   for (let i = firstDayOfWeek - 1; i >= 0; i--) {
     const date = new Date(monthStart)
     date.setDate(date.getDate() - (i + 1))
     days.push({ date, isCurrentMonth: false })
   }
-  
+
   // Add days of current month
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(monthStart)
     date.setDate(day)
     days.push({ date, isCurrentMonth: true })
   }
-  
+
   // Add padding days from next month to complete the grid (42 cells = 6 weeks)
   const remainingCells = 42 - days.length
   for (let day = 1; day <= remainingCells; day++) {
@@ -247,7 +247,7 @@ const currentMonthDays = computed(() => {
     date.setDate(day)
     days.push({ date, isCurrentMonth: false })
   }
-  
+
   return days
 })
 
@@ -255,8 +255,8 @@ const currentMonthDays = computed(() => {
 const getBookingsForDate = (date: Date) => {
   const dateStr = formatDate(date)
   return bookings.value?.filter(booking => {
-    const bookingDate = booking.booking_date.includes('T') 
-      ? booking.booking_date.split('T')[0] 
+    const bookingDate = booking.booking_date.includes('T')
+      ? booking.booking_date.split('T')[0]
       : booking.booking_date
     return bookingDate === dateStr
   }) || []
@@ -514,7 +514,7 @@ const handleTimeSlotClick = (date: Date, time: string) => {
 
 const handleMonthDayClick = (date: Date) => {
   const dayBookings = getBookingsForDate(date)
-  
+
   if (dayBookings.length === 1) {
     // If only one booking, edit it directly
     editBooking(dayBookings[0])
@@ -1034,7 +1034,7 @@ const forceRefreshCalendar = async () => {
                     {{ booking.client_profile?.first_name || booking.customer?.full_name || 'Customer' }}
                   </div>
                 </div>
-                
+
                 <!-- More bookings indicator -->
                 <div
                   v-if="getBookingsForDate(dayInfo.date).length > 3"
@@ -1050,14 +1050,13 @@ const forceRefreshCalendar = async () => {
     </template>
   </UDashboardPanel>
 
-  <!-- Create/Edit Booking Side Panel -->
-  <div v-if="showCreateModal" class="fixed inset-0 z-50 overflow-hidden">
+  <!-- Create/Edit Booking Modal -->
+  <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center">
     <!-- Backdrop -->
     <div class="absolute inset-0 bg-black/50" @click="closeModal" />
 
-    <!-- Slide Panel -->
-    <div class="absolute right-0 top-0 h-full w-96 bg-gray-800 shadow-xl transform transition-transform duration-300">
-      <div class="flex flex-col h-full">
+    <!-- Modal Panel -->
+    <div class="relative w-full max-w-lg mx-4 bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
         <!-- Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-700">
           <h3 class="text-lg font-semibold text-white">
@@ -1167,7 +1166,6 @@ const forceRefreshCalendar = async () => {
             />
           </div>
         </div>
-      </div>
     </div>
   </div>
 </template>
