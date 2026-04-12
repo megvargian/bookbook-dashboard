@@ -842,22 +842,22 @@ const forceRefreshCalendar = async () => {
 
     <template #body>
       <!-- Week View - Calendar Grid -->
-      <div v-if="viewMode === 'week'" class="h-full flex flex-col bg-gray-900">
+      <div v-if="viewMode === 'week'" class="h-full flex flex-col bg-white dark:bg-gray-900">
         <!-- Week Days Header -->
-        <div class="grid grid-cols-8 border-b border-gray-700 bg-gray-800">
-          <div class="p-3 text-sm font-medium text-gray-300 text-center border-r border-gray-700">
+        <div class="grid grid-cols-8 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
+          <div class="p-3 text-sm font-medium text-slate-500 dark:text-gray-300 text-center border-r border-slate-200 dark:border-gray-700">
             Time
           </div>
           <div
             v-for="(day, index) in currentWeekDays"
             :key="index"
-            class="p-3 text-center border-r border-gray-700 last:border-r-0"
-            :class="{ 'bg-blue-900': isToday(day) }"
+            class="p-3 text-center border-r border-slate-200 dark:border-gray-700 last:border-r-0"
+            :class="{ 'bg-blue-100 dark:bg-blue-900': isToday(day) }"
           >
-            <div class="text-sm font-medium text-gray-300">
+            <div class="text-sm font-medium text-slate-500 dark:text-gray-300">
               {{ weekDays[day.getDay()] }}
             </div>
-            <div class="text-lg font-semibold mt-1" :class="{ 'text-blue-400': isToday(day), 'text-white': !isToday(day) }">
+            <div class="text-lg font-semibold mt-1" :class="{ 'text-blue-500 dark:text-blue-400': isToday(day), 'text-slate-900 dark:text-white': !isToday(day) }">
               {{ day.getDate() }}
             </div>
           </div>
@@ -868,7 +868,7 @@ const forceRefreshCalendar = async () => {
           <div class="grid grid-cols-8">
             <div v-for="time in timeSlots" :key="time" class="contents">
               <!-- Time Column -->
-              <div class="p-2 text-xs text-gray-400 text-right border-r border-gray-700 bg-gray-800 sticky left-0 z-10 min-h-12 flex items-center justify-end">
+              <div class="p-2 text-xs text-slate-400 dark:text-gray-400 text-right border-r border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 sticky left-0 z-10 min-h-12 flex items-center justify-end">
                 {{ time }}
               </div>
 
@@ -876,12 +876,12 @@ const forceRefreshCalendar = async () => {
               <div
                 v-for="day in currentWeekDays"
                 :key="`${day}-${time}`"
-                class="border-r border-gray-700 border-b border-gray-800 min-h-12 p-1 cursor-pointer transition-all duration-200 relative"
+                class="border-r border-slate-200 dark:border-gray-700 border-b border-slate-100 dark:border-gray-800 min-h-12 p-1 cursor-pointer transition-all duration-200 relative"
                 :class="{
-                  'bg-gray-800/20': isToday(day),
-                  'bg-gray-900': !isToday(day),
-                  'bg-blue-900/30 border-blue-500/50': selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time,
-                  'hover:bg-gray-800/30': !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)
+                  'bg-blue-50/50 dark:bg-gray-800/20': isToday(day),
+                  'bg-white dark:bg-gray-900': !isToday(day),
+                  'bg-blue-100/60 dark:bg-blue-900/30 border-blue-500/50': selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time,
+                  'hover:bg-slate-50 dark:hover:bg-gray-800/30': !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)
                 }"
                 @click.stop="handleTimeSlotClick(day, time)"
               >
@@ -979,13 +979,13 @@ const forceRefreshCalendar = async () => {
       </div>
 
       <!-- Month View - Traditional Calendar -->
-      <div v-else class="h-full flex flex-col bg-gray-900">
+      <div v-else class="h-full flex flex-col bg-white dark:bg-gray-900">
         <!-- Month Days Header -->
-        <div class="grid grid-cols-7 border-b border-gray-700 bg-gray-800">
+        <div class="grid grid-cols-7 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
           <div
             v-for="day in weekDays"
             :key="day"
-            class="p-4 text-center text-sm font-medium text-gray-300 border-r border-gray-700 last:border-r-0"
+            class="p-4 text-center text-sm font-medium text-slate-500 dark:text-gray-300 border-r border-slate-200 dark:border-gray-700 last:border-r-0"
           >
             {{ day }}
           </div>
@@ -997,12 +997,12 @@ const forceRefreshCalendar = async () => {
             <div
               v-for="(dayInfo, index) in currentMonthDays"
               :key="index"
-              class="border-r border-gray-700 border-b border-gray-700 min-h-24 p-2 cursor-pointer transition-all duration-200 relative flex flex-col"
+              class="border-r border-slate-200 dark:border-gray-700 border-b border-slate-200 dark:border-gray-700 min-h-24 p-2 cursor-pointer transition-all duration-200 relative flex flex-col"
               :class="{
-                'bg-gray-800/50': !dayInfo.isCurrentMonth,
-                'bg-gray-900': dayInfo.isCurrentMonth,
-                'bg-blue-900/30': isToday(dayInfo.date),
-                'hover:bg-gray-800/30': true
+                'bg-slate-100/50 dark:bg-gray-800/50': !dayInfo.isCurrentMonth,
+                'bg-white dark:bg-gray-900': dayInfo.isCurrentMonth,
+                'bg-blue-50 dark:bg-blue-900/30': isToday(dayInfo.date),
+                'hover:bg-slate-50 dark:hover:bg-gray-800/30': true
               }"
               @click="handleMonthDayClick(dayInfo.date)"
             >
@@ -1011,9 +1011,9 @@ const forceRefreshCalendar = async () => {
                 <span
                   class="text-sm font-medium"
                   :class="{
-                    'text-gray-500': !dayInfo.isCurrentMonth,
-                    'text-white': dayInfo.isCurrentMonth && !isToday(dayInfo.date),
-                    'text-blue-400 font-bold': isToday(dayInfo.date)
+                    'text-slate-300 dark:text-gray-500': !dayInfo.isCurrentMonth,
+                    'text-slate-700 dark:text-white': dayInfo.isCurrentMonth && !isToday(dayInfo.date),
+                    'text-blue-500 dark:text-blue-400 font-bold': isToday(dayInfo.date)
                   }"
                 >
                   {{ dayInfo.date.getDate() }}
@@ -1038,7 +1038,7 @@ const forceRefreshCalendar = async () => {
                 <!-- More bookings indicator -->
                 <div
                   v-if="getBookingsForDate(dayInfo.date).length > 3"
-                  class="text-xs text-gray-400 px-2"
+                  class="text-xs text-slate-400 dark:text-gray-400 px-2"
                 >
                   +{{ getBookingsForDate(dayInfo.date).length - 3 }} more
                 </div>
@@ -1056,10 +1056,10 @@ const forceRefreshCalendar = async () => {
     <div class="absolute inset-0 bg-black/50" @click="closeModal" />
 
     <!-- Modal Panel -->
-    <div class="relative w-full max-w-lg mx-4 bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+    <div class="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
         <!-- Header -->
-        <div class="flex items-center justify-between p-6 border-b border-gray-700">
-          <h3 class="text-lg font-semibold text-white">
+        <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
+          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
             {{ editingBooking ? 'Edit Booking' : 'Create New Booking' }}
           </h3>
           <UButton
@@ -1151,7 +1151,7 @@ const forceRefreshCalendar = async () => {
         </div>
 
         <!-- Footer Actions -->
-        <div class="p-6 border-t border-gray-700">
+        <div class="p-6 border-t border-slate-200 dark:border-gray-700">
           <div class="flex justify-end gap-3">
             <UButton
               label="Cancel"
@@ -1193,6 +1193,10 @@ const forceRefreshCalendar = async () => {
 }
 
 .min-h-12:hover {
+  background-color: rgba(241, 245, 249, 0.8) !important;
+}
+
+:root.dark .min-h-12:hover {
   background-color: rgba(55, 65, 81, 0.3) !important;
 }
 
@@ -1202,16 +1206,24 @@ const forceRefreshCalendar = async () => {
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.5);
+  background: rgba(226, 232, 240, 0.5);
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgba(75, 85, 99, 0.8);
+  background: rgba(148, 163, 184, 0.8);
   border-radius: 4px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.9);
+}
+
+:root.dark .overflow-y-auto::-webkit-scrollbar-track {
+  background: rgba(17, 24, 39, 0.5);
+}
+
+:root.dark .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.8);
 }
 
 /* Enhanced animations */
@@ -1271,6 +1283,10 @@ const forceRefreshCalendar = async () => {
 }
 
 .min-h-12:hover {
+  background-color: rgba(241, 245, 249, 0.8) !important;
+}
+
+:root.dark .min-h-12:hover {
   background-color: rgba(55, 65, 81, 0.3) !important;
 }
 
@@ -1280,16 +1296,24 @@ const forceRefreshCalendar = async () => {
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.5);
+  background: rgba(226, 232, 240, 0.5);
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgba(75, 85, 99, 0.8);
+  background: rgba(148, 163, 184, 0.8);
   border-radius: 4px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.9);
+}
+
+:root.dark .overflow-y-auto::-webkit-scrollbar-track {
+  background: rgba(17, 24, 39, 0.5);
+}
+
+:root.dark .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.8);
 }
 
 /* Enhanced animations */
@@ -1354,15 +1378,23 @@ const forceRefreshCalendar = async () => {
 }
 
 .calendar-container::-webkit-scrollbar-track {
-  background: rgb(17, 24, 39);
+  background: rgb(226, 232, 240);
 }
 
 .calendar-container::-webkit-scrollbar-thumb {
-  background: rgb(75, 85, 99);
+  background: rgb(148, 163, 184);
   border-radius: 4px;
 }
 
 .calendar-container::-webkit-scrollbar-thumb:hover {
   background: rgb(107, 114, 128);
+}
+
+:root.dark .calendar-container::-webkit-scrollbar-track {
+  background: rgb(17, 24, 39);
+}
+
+:root.dark .calendar-container::-webkit-scrollbar-thumb {
+  background: rgb(75, 85, 99);
 }
 </style>

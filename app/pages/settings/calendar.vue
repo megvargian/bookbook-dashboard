@@ -254,8 +254,8 @@ watch(showCreateModal, (isOpen) => {
     <!-- Page header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-xl font-semibold text-navy-500">Calendar</h2>
-        <p class="text-sm text-slate-400 mt-0.5">
+        <h2 class="text-xl font-semibold text-navy-500 dark:text-navy-300">Calendar</h2>
+        <p class="text-sm text-slate-400 dark:text-gray-400 mt-0.5">
           {{ isAdmin ? 'View and manage bookings' : 'View your assigned bookings' }}
         </p>
       </div>
@@ -280,18 +280,18 @@ watch(showCreateModal, (isOpen) => {
       <!-- ── LEFT: Mini calendar + staff filter ────────────── -->
       <div class="w-52 flex-shrink-0 flex flex-col gap-3">
         <!-- Mini Calendar Card -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm p-3">
           <!-- Month nav -->
           <div class="flex items-center justify-between mb-2.5">
             <button
-              class="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-400 text-xs transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+              class="w-6 h-6 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-xs transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
               @click="prevMiniMonth"
             >
               ‹
             </button>
-            <span class="text-xs font-semibold text-slate-700">{{ miniCalMonthName }}</span>
+            <span class="text-xs font-semibold text-navy-500 dark:text-navy-300">{{ miniCalMonthName }}</span>
             <button
-              class="w-6 h-6 rounded-md border border-slate-200 flex items-center justify-center text-slate-400 text-xs transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+              class="w-6 h-6 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-xs transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
               @click="nextMiniMonth"
             >
               ›
@@ -303,7 +303,7 @@ watch(showCreateModal, (isOpen) => {
             <div
               v-for="d in ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']"
               :key="d"
-              class="w-6 text-center text-[8px] font-bold text-slate-400 uppercase py-0.5"
+              class="w-6 text-center text-[8px] font-bold text-slate-400 dark:text-gray-500 uppercase py-0.5"
             >
               {{ d }}
             </div>
@@ -320,8 +320,8 @@ watch(showCreateModal, (isOpen) => {
                   isSelected(date)
                     ? 'bg-navy-500 text-white font-bold'
                     : isToday(date)
-                      ? 'text-navy-500 font-bold hover:bg-slate-100'
-                      : 'text-slate-400 hover:bg-slate-100 hover:text-navy-500'
+                      ? 'text-navy-500 dark:text-navy-300 font-bold hover:bg-slate-100 dark:hover:bg-gray-800'
+                      : 'text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-navy-500'
                 ]"
                 @click="selectDate(date)"
               >
@@ -346,9 +346,9 @@ watch(showCreateModal, (isOpen) => {
         <!-- Filter by staff -->
         <div
           v-if="isAdmin && employees && (employees as any[]).length"
-          class="bg-white rounded-xl border border-slate-200 shadow-sm p-3"
+          class="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm p-3"
         >
-          <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">
+          <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500 mb-2.5">
             Filter by staff
           </p>
           <div
@@ -360,7 +360,7 @@ watch(showCreateModal, (isOpen) => {
               <span class="text-white text-[7px] font-bold">✓</span>
             </div>
             <div class="w-2 h-2 rounded-full bg-navy-400 flex-shrink-0" />
-            <span class="text-xs font-medium text-slate-700 flex-1 truncate">
+            <span class="text-xs font-medium text-slate-700 dark:text-gray-200 flex-1 truncate">
               {{ emp.first_name }} {{ emp.last_name?.charAt(0) }}.
             </span>
           </div>
@@ -368,36 +368,36 @@ watch(showCreateModal, (isOpen) => {
       </div>
 
       <!-- ── RIGHT: Main calendar ────────────────────────── -->
-      <div class="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+      <div class="flex-1 bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm flex flex-col overflow-hidden">
         <!-- Toolbar -->
-        <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 flex-shrink-0">
+        <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-gray-700 flex-shrink-0">
           <button
-            class="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-md bg-white text-slate-700 hover:bg-slate-50 transition-all"
+            class="px-3 py-1.5 text-xs font-semibold border border-slate-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-800 transition-all"
             @click="selectDate(new Date())"
           >
             Today
           </button>
           <button
-            class="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+            class="w-7 h-7 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
             @click="previousMonth"
           >
             ‹
           </button>
           <button
-            class="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+            class="w-7 h-7 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
             @click="nextMonth"
           >
             ›
           </button>
-          <span class="text-[15px] font-semibold text-slate-700 ml-1">{{ monthName }}</span>
+          <span class="text-[15px] font-semibold text-navy-500 dark:text-navy-300 ml-1">{{ monthName }}</span>
         </div>
 
         <!-- Week day headers: Mon–Sun -->
-        <div class="grid grid-cols-7 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+        <div class="grid grid-cols-7 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 flex-shrink-0">
           <div
             v-for="day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']"
             :key="day"
-            class="p-2 text-center text-[9px] font-bold text-slate-400 uppercase tracking-wider"
+            class="p-2 text-center text-[9px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider"
           >
             {{ day }}
           </div>
@@ -409,9 +409,9 @@ watch(showCreateModal, (isOpen) => {
             <div
               v-for="(day, index) in calendarDays"
               :key="index"
-              class="bg-white border-r border-b border-slate-100 p-1.5 cursor-pointer transition-colors overflow-hidden"
+              class="bg-white dark:bg-gray-900 border-r border-b border-slate-100 dark:border-gray-700/40 p-1.5 cursor-pointer transition-colors overflow-hidden"
               :class="[
-                !day.isCurrentMonth ? '!bg-slate-50' : 'hover:!bg-slate-50',
+                !day.isCurrentMonth ? '!bg-slate-50 dark:!bg-gray-800/40' : 'hover:!bg-slate-50 dark:hover:!bg-gray-800',
                 isSelected(day.fullDate) && day.isCurrentMonth ? 'ring-2 ring-inset ring-navy-500' : ''
               ]"
               @click="selectDate(day.fullDate)"
@@ -421,7 +421,7 @@ watch(showCreateModal, (isOpen) => {
               <div
                 class="mb-1 w-5 h-5 flex items-center justify-center rounded-full text-[11px] font-semibold"
                 :class="[
-                  !day.isCurrentMonth ? 'text-slate-300' : 'text-slate-700',
+                  !day.isCurrentMonth ? 'text-slate-300 dark:text-gray-600' : 'text-slate-700 dark:text-navy-200',
                   isToday(day.fullDate) ? '!bg-navy-500 !text-white' : ''
                 ]"
               >
@@ -433,14 +433,13 @@ watch(showCreateModal, (isOpen) => {
                 <div
                   v-for="booking in bookingsForDate(day.fullDate).slice(0, 2)"
                   :key="booking.id"
-                  class="text-[10px] font-semibold px-1.5 py-px rounded truncate"
-                  style="background: #EEF2F8; color: #1B2B4B; border-left: 2px solid #1B2B4B"
+                  class="text-[10px] font-semibold px-1.5 py-px rounded truncate bg-navy-50 text-navy-500 border-l-2 border-navy-500 dark:bg-navy-500/20 dark:text-navy-200 dark:border-navy-400"
                 >
                   {{ formatTimeFromTimestamp(booking.start_time) }} · {{ booking.service?.name }}
                 </div>
                 <div
                   v-if="bookingsForDate(day.fullDate).length > 2"
-                  class="text-[10px] font-semibold text-navy-500 pl-1"
+                  class="text-[10px] font-semibold text-navy-500 dark:text-navy-300 pl-1"
                 >
                   +{{ bookingsForDate(day.fullDate).length - 2 }} more
                 </div>
@@ -454,35 +453,35 @@ watch(showCreateModal, (isOpen) => {
     <!-- Selected date bookings list -->
     <div
       v-if="bookingsForDate(selectedDate).length"
-      class="bg-white rounded-xl border border-slate-200 shadow-sm p-4"
+      class="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm p-4"
     >
-      <h3 class="text-sm font-semibold text-navy-500 mb-3">
+      <h3 class="text-sm font-semibold text-navy-500 dark:text-navy-300 mb-3">
         Bookings for {{ selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
       </h3>
       <div class="grid gap-2">
         <div
           v-for="booking in bookingsForDate(selectedDate)"
           :key="booking.id"
-          class="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50"
+          class="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-gray-700/50 bg-slate-50 dark:bg-gray-800"
         >
           <div>
-            <p class="text-sm font-semibold text-slate-800">{{ booking.service?.name }}</p>
-            <p class="text-xs text-slate-500 mt-0.5">
+            <p class="text-sm font-semibold text-slate-800 dark:text-gray-100">{{ booking.service?.name }}</p>
+            <p class="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
               {{ formatTimeFromTimestamp(booking.start_time) }}–{{ formatTimeFromTimestamp(booking.end_time) }}
               · {{ booking.client_profile?.first_name }} {{ booking.client_profile?.last_name }}
               · {{ booking.employee?.first_name }} {{ booking.employee?.last_name }}
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-navy-500">${{ booking.total_price }}</span>
+            <span class="text-sm font-bold text-navy-500 dark:text-navy-300">${{ booking.total_price }}</span>
             <span
               class="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize"
-              :class="{
-                'bg-emerald-100 text-emerald-700': booking.status === 'confirmed',
-                'bg-amber-100 text-amber-700': booking.status === 'pending',
-                'bg-slate-100 text-slate-500': booking.status === 'completed',
-                'bg-red-100 text-red-600': booking.status === 'cancelled'
-              }"
+              :class="[
+                booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                booking.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                booking.status === 'completed' ? 'bg-slate-100 text-slate-500 dark:bg-gray-700 dark:text-gray-400' :
+                booking.status === 'cancelled' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : ''
+              ]"
             >
               {{ booking.status }}
             </span>
