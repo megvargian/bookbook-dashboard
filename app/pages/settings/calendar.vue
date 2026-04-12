@@ -71,7 +71,7 @@ const monthName = computed(() =>
 )
 
 const calendarDays = computed(() => {
-  const days: { date: number; isCurrentMonth: boolean; fullDate: Date }[] = []
+  const days: { date: number, isCurrentMonth: boolean, fullDate: Date }[] = []
   const totalCells = 42
 
   // Previous month's trailing days
@@ -254,13 +254,20 @@ watch(showCreateModal, (isOpen) => {
     <!-- Page header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-xl font-semibold text-navy-500 dark:text-navy-300">Calendar</h2>
+        <h2 class="text-xl font-semibold text-navy-500 dark:text-navy-300">
+          Calendar
+        </h2>
         <p class="text-sm text-slate-400 dark:text-gray-400 mt-0.5">
           {{ isAdmin ? 'View and manage bookings' : 'View your assigned bookings' }}
         </p>
       </div>
       <div class="flex gap-2">
-        <UButton variant="outline" size="sm" icon="i-lucide-download" color="neutral">
+        <UButton
+          variant="outline"
+          size="sm"
+          icon="i-lucide-download"
+          color="neutral"
+        >
           Export
         </UButton>
         <UButton
@@ -275,9 +282,91 @@ watch(showCreateModal, (isOpen) => {
       </div>
     </div>
 
-    <!-- Two-column layout: mini cal + filter | main calendar -->
+    <!-- Two-column layout: main calendar | mini cal + filter -->
     <div class="flex gap-3">
-      <!-- ── LEFT: Mini calendar + staff filter ────────────── -->
+      <!-- ── LEFT: Main calendar ────────────────────────── -->
+      <div class="flex-1 bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm flex flex-col overflow-hidden">
+        <!-- Toolbar -->
+        <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-gray-700 flex-shrink-0">
+          <button
+            class="px-3 py-1.5 text-xs font-semibold border border-slate-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-800 transition-all"
+            @click="selectDate(new Date())"
+          >
+            Today
+          </button>
+          <button
+            class="w-7 h-7 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+            @click="previousMonth"
+          >
+            ‹
+          </button>
+          <button
+            class="w-7 h-7 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+            @click="nextMonth"
+          >
+            ›
+          </button>
+          <span class="text-[15px] font-semibold text-navy-500 dark:text-navy-300 ml-1">{{ monthName }}</span>
+        </div>
+
+        <!-- Week day headers: Mon–Sun -->
+        <div class="grid grid-cols-7 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 flex-shrink-0">
+          <div
+            v-for="day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']"
+            :key="day"
+            class="p-2 text-center text-[9px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider"
+          >
+            {{ day }}
+          </div>
+        </div>
+
+        <!-- Calendar grid -->
+        <div class="overflow-auto">
+          <div class="grid grid-cols-7" style="grid-auto-rows: minmax(88px, 1fr)">
+            <div
+              v-for="(day, index) in calendarDays"
+              :key="index"
+              class="bg-white dark:bg-gray-900 border-r border-b border-slate-100 dark:border-gray-700/40 p-1.5 cursor-pointer transition-colors overflow-hidden"
+              :class="[
+                !day.isCurrentMonth ? '!bg-slate-50 dark:!bg-gray-800/40' : 'hover:!bg-slate-50 dark:hover:!bg-gray-800',
+                isSelected(day.fullDate) && day.isCurrentMonth ? 'ring-2 ring-inset ring-navy-500' : ''
+              ]"
+              @click="selectDate(day.fullDate)"
+              @dblclick="openCreateModal(day.fullDate)"
+            >
+              <!-- Date number -->
+              <div
+                class="mb-1 w-5 h-5 flex items-center justify-center rounded-full text-[11px] font-semibold"
+                :class="[
+                  !day.isCurrentMonth ? 'text-slate-300 dark:text-gray-600' : 'text-slate-700 dark:text-navy-200',
+                  isToday(day.fullDate) ? '!bg-navy-500 !text-white' : ''
+                ]"
+              >
+                {{ day.date }}
+              </div>
+
+              <!-- Booking pills -->
+              <div class="space-y-px">
+                <div
+                  v-for="booking in bookingsForDate(day.fullDate).slice(0, 2)"
+                  :key="booking.id"
+                  class="text-[10px] font-semibold px-1.5 py-px rounded truncate bg-navy-50 text-navy-500 border-l-2 border-navy-500 dark:bg-navy-500/20 dark:text-navy-200 dark:border-navy-400"
+                >
+                  {{ formatTimeFromTimestamp(booking.start_time) }} · {{ booking.service?.name }}
+                </div>
+                <div
+                  v-if="bookingsForDate(day.fullDate).length > 2"
+                  class="text-[10px] font-semibold text-navy-500 dark:text-navy-300 pl-1"
+                >
+                  +{{ bookingsForDate(day.fullDate).length - 2 }} more
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RIGHT: Mini calendar + staff filter ────────────── -->
       <div class="w-52 flex-shrink-0 flex flex-col gap-3">
         <!-- Mini Calendar Card -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm p-3">
@@ -366,193 +455,119 @@ watch(showCreateModal, (isOpen) => {
           </div>
         </div>
       </div>
-
-      <!-- ── RIGHT: Main calendar ────────────────────────── -->
-      <div class="flex-1 bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm flex flex-col overflow-hidden">
-        <!-- Toolbar -->
-        <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-gray-700 flex-shrink-0">
-          <button
-            class="px-3 py-1.5 text-xs font-semibold border border-slate-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-800 transition-all"
-            @click="selectDate(new Date())"
-          >
-            Today
-          </button>
-          <button
-            class="w-7 h-7 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
-            @click="previousMonth"
-          >
-            ‹
-          </button>
-          <button
-            class="w-7 h-7 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-sm transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
-            @click="nextMonth"
-          >
-            ›
-          </button>
-          <span class="text-[15px] font-semibold text-navy-500 dark:text-navy-300 ml-1">{{ monthName }}</span>
-        </div>
-
-        <!-- Week day headers: Mon–Sun -->
-        <div class="grid grid-cols-7 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 flex-shrink-0">
-          <div
-            v-for="day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']"
-            :key="day"
-            class="p-2 text-center text-[9px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider"
-          >
-            {{ day }}
-          </div>
-        </div>
-
-        <!-- Calendar grid -->
-        <div class="overflow-auto">
-          <div class="grid grid-cols-7" style="grid-auto-rows: minmax(88px, 1fr)">
-            <div
-              v-for="(day, index) in calendarDays"
-              :key="index"
-              class="bg-white dark:bg-gray-900 border-r border-b border-slate-100 dark:border-gray-700/40 p-1.5 cursor-pointer transition-colors overflow-hidden"
-              :class="[
-                !day.isCurrentMonth ? '!bg-slate-50 dark:!bg-gray-800/40' : 'hover:!bg-slate-50 dark:hover:!bg-gray-800',
-                isSelected(day.fullDate) && day.isCurrentMonth ? 'ring-2 ring-inset ring-navy-500' : ''
-              ]"
-              @click="selectDate(day.fullDate)"
-              @dblclick="openCreateModal(day.fullDate)"
-            >
-              <!-- Date number -->
-              <div
-                class="mb-1 w-5 h-5 flex items-center justify-center rounded-full text-[11px] font-semibold"
-                :class="[
-                  !day.isCurrentMonth ? 'text-slate-300 dark:text-gray-600' : 'text-slate-700 dark:text-navy-200',
-                  isToday(day.fullDate) ? '!bg-navy-500 !text-white' : ''
-                ]"
-              >
-                {{ day.date }}
-              </div>
-
-              <!-- Booking pills -->
-              <div class="space-y-px">
-                <div
-                  v-for="booking in bookingsForDate(day.fullDate).slice(0, 2)"
-                  :key="booking.id"
-                  class="text-[10px] font-semibold px-1.5 py-px rounded truncate bg-navy-50 text-navy-500 border-l-2 border-navy-500 dark:bg-navy-500/20 dark:text-navy-200 dark:border-navy-400"
-                >
-                  {{ formatTimeFromTimestamp(booking.start_time) }} · {{ booking.service?.name }}
-                </div>
-                <div
-                  v-if="bookingsForDate(day.fullDate).length > 2"
-                  class="text-[10px] font-semibold text-navy-500 dark:text-navy-300 pl-1"
-                >
-                  +{{ bookingsForDate(day.fullDate).length - 2 }} more
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
-
-    <!-- Selected date bookings list -->
-    <div
-      v-if="bookingsForDate(selectedDate).length"
-      class="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm p-4"
-    >
-      <h3 class="text-sm font-semibold text-navy-500 dark:text-navy-300 mb-3">
-        Bookings for {{ selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
-      </h3>
-      <div class="grid gap-2">
-        <div
-          v-for="booking in bookingsForDate(selectedDate)"
-          :key="booking.id"
-          class="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-gray-700/50 bg-slate-50 dark:bg-gray-800"
-        >
-          <div>
-            <p class="text-sm font-semibold text-slate-800 dark:text-gray-100">{{ booking.service?.name }}</p>
-            <p class="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-              {{ formatTimeFromTimestamp(booking.start_time) }}–{{ formatTimeFromTimestamp(booking.end_time) }}
-              · {{ booking.client_profile?.first_name }} {{ booking.client_profile?.last_name }}
-              · {{ booking.employee?.first_name }} {{ booking.employee?.last_name }}
-            </p>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-navy-500 dark:text-navy-300">${{ booking.total_price }}</span>
-            <span
-              class="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize"
-              :class="[
-                booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                booking.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                booking.status === 'completed' ? 'bg-slate-100 text-slate-500 dark:bg-gray-700 dark:text-gray-400' :
-                booking.status === 'cancelled' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : ''
-              ]"
-            >
-              {{ booking.status }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Create Booking Modal -->
-    <UModal v-if="isAdmin" v-model="showCreateModal">
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold">Create New Booking</h3>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              icon="i-heroicons-x-mark-20-solid"
-              @click="showCreateModal = false"
-            />
-          </div>
-        </template>
-
-        <UForm :schema="bookingSchema" :state="newBooking" class="space-y-4" @submit="createBooking">
-          <UFormField name="client_id" label="Client" required>
-            <USelectMenu
-              v-model="newBooking.client_id"
-              :options="(clients as any[]).map(c => ({ label: `${c.first_name} ${c.last_name}`, value: c.id }))"
-              placeholder="Select client"
-            />
-          </UFormField>
-
-          <UFormField name="service_id" label="Service" required>
-            <USelectMenu
-              v-model="newBooking.service_id"
-              :options="(services as any[]).map(s => ({ label: `${s.name} - $${s.price}`, value: s.id }))"
-              placeholder="Select service"
-            />
-          </UFormField>
-
-          <UFormField name="employee_id" label="Employee" required>
-            <USelectMenu
-              v-model="newBooking.employee_id"
-              :options="(employees as any[]).map(e => ({ label: `${e.first_name} ${e.last_name}`, value: e.id }))"
-              placeholder="Select employee"
-            />
-          </UFormField>
-
-          <div class="grid grid-cols-2 gap-4">
-            <UFormField name="booking_date" label="Date" required>
-              <UInput v-model="newBooking.booking_date" type="date" />
-            </UFormField>
-            <UFormField name="start_time" label="Start Time" required>
-              <UInput v-model="newBooking.start_time" type="time" />
-            </UFormField>
-          </div>
-
-          <UFormField name="notes" label="Notes">
-            <UTextarea v-model="newBooking.notes" placeholder="Additional notes or instructions" />
-          </UFormField>
-
-          <div class="flex justify-end gap-3 pt-4">
-            <UButton type="button" variant="outline" @click="showCreateModal = false">
-              Cancel
-            </UButton>
-            <UButton type="submit" :loading="loading">
-              Create Booking
-            </UButton>
-          </div>
-        </UForm>
-      </UCard>
-    </UModal>
   </div>
+  <!-- Selected date bookings list -->
+  <div
+    v-if="bookingsForDate(selectedDate).length"
+    class="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm p-4"
+  >
+    <h3 class="text-sm font-semibold text-navy-500 dark:text-navy-300 mb-3">
+      Bookings for {{ selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
+    </h3>
+    <div class="grid gap-2">
+      <div
+        v-for="booking in bookingsForDate(selectedDate)"
+        :key="booking.id"
+        class="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-gray-700/50 bg-slate-50 dark:bg-gray-800"
+      >
+        <div>
+          <p class="text-sm font-semibold text-slate-800 dark:text-gray-100">
+            {{ booking.service?.name }}
+          </p>
+          <p class="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+            {{ formatTimeFromTimestamp(booking.start_time) }}–{{ formatTimeFromTimestamp(booking.end_time) }}
+            · {{ booking.client_profile?.first_name }} {{ booking.client_profile?.last_name }}
+            · {{ booking.employee?.first_name }} {{ booking.employee?.last_name }}
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-bold text-navy-500 dark:text-navy-300">${{ booking.total_price }}</span>
+          <span
+            class="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize"
+            :class="[
+              booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : booking.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                : booking.status === 'completed' ? 'bg-slate-100 text-slate-500 dark:bg-gray-700 dark:text-gray-400'
+                  : booking.status === 'cancelled' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : ''
+            ]"
+          >
+            {{ booking.status }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Booking Modal -->
+  <UModal v-if="isAdmin" v-model="showCreateModal">
+    <UCard>
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-semibold">
+            Create New Booking
+          </h3>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-heroicons-x-mark-20-solid"
+            @click="showCreateModal = false"
+          />
+        </div>
+      </template>
+
+      <UForm
+        :schema="bookingSchema"
+        :state="newBooking"
+        class="space-y-4"
+        @submit="createBooking"
+      >
+        <UFormField name="client_id" label="Client" required>
+          <USelectMenu
+            v-model="newBooking.client_id"
+            :options="(clients as any[]).map(c => ({ label: `${c.first_name} ${c.last_name}`, value: c.id }))"
+            placeholder="Select client"
+          />
+        </UFormField>
+
+        <UFormField name="service_id" label="Service" required>
+          <USelectMenu
+            v-model="newBooking.service_id"
+            :options="(services as any[]).map(s => ({ label: `${s.name} - $${s.price}`, value: s.id }))"
+            placeholder="Select service"
+          />
+        </UFormField>
+
+        <UFormField name="employee_id" label="Employee" required>
+          <USelectMenu
+            v-model="newBooking.employee_id"
+            :options="(employees as any[]).map(e => ({ label: `${e.first_name} ${e.last_name}`, value: e.id }))"
+            placeholder="Select employee"
+          />
+        </UFormField>
+
+        <div class="grid grid-cols-2 gap-4">
+          <UFormField name="booking_date" label="Date" required>
+            <UInput v-model="newBooking.booking_date" type="date" />
+          </UFormField>
+          <UFormField name="start_time" label="Start Time" required>
+            <UInput v-model="newBooking.start_time" type="time" />
+          </UFormField>
+        </div>
+
+        <UFormField name="notes" label="Notes">
+          <UTextarea v-model="newBooking.notes" placeholder="Additional notes or instructions" />
+        </UFormField>
+
+        <div class="flex justify-end gap-3 pt-4">
+          <UButton type="button" variant="outline" @click="showCreateModal = false">
+            Cancel
+          </UButton>
+          <UButton type="submit" :loading="loading">
+            Create Booking
+          </UButton>
+        </div>
+      </UForm>
+    </UCard>
+  </UModal>
 </template>

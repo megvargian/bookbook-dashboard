@@ -254,7 +254,7 @@ const currentMonthDays = computed(() => {
 // Get bookings for a specific date
 const getBookingsForDate = (date: Date) => {
   const dateStr = formatDate(date)
-  return bookings.value?.filter(booking => {
+  return bookings.value?.filter((booking) => {
     const bookingDate = booking.booking_date.includes('T')
       ? booking.booking_date.split('T')[0]
       : booking.booking_date
@@ -272,7 +272,7 @@ watchEffect(() => {
     console.log('📅 Current week dates:', currentWeek)
 
     // Check if any bookings match current week
-    const weekBookings = bookings.value.filter(booking => {
+    const weekBookings = bookings.value.filter((booking) => {
       const bookingDate = booking.booking_date.includes('T')
         ? booking.booking_date.split('T')[0]
         : booking.booking_date
@@ -772,6 +772,62 @@ const forceRefreshCalendar = async () => {
   await refreshBookings()
   console.log('✅ Calendar data refreshed')
 }
+
+// ── Mini calendar (left sidebar) ──────────────────────────
+const miniCalDate = ref(new Date())
+
+// Keep mini cal in sync when main calendar navigates
+watch(currentDate, (val) => {
+  miniCalDate.value = new Date(val.getFullYear(), val.getMonth(), 1)
+})
+
+const miniCalMonthName = computed(() =>
+  miniCalDate.value.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+)
+
+const miniCalDays = computed(() => {
+  const year = miniCalDate.value.getFullYear()
+  const month = miniCalDate.value.getMonth()
+  const firstDay = new Date(year, month, 1).getDay()
+  const offset = firstDay === 0 ? 6 : firstDay - 1
+  const daysInMon = new Date(year, month + 1, 0).getDate()
+  const cells: (Date | null)[] = []
+  for (let i = 0; i < offset; i++) cells.push(null)
+  for (let d = 1; d <= daysInMon; d++) cells.push(new Date(year, month, d))
+  return cells
+})
+
+const prevMiniMonth = () => {
+  miniCalDate.value = new Date(miniCalDate.value.getFullYear(), miniCalDate.value.getMonth() - 1, 1)
+}
+
+const nextMiniMonth = () => {
+  miniCalDate.value = new Date(miniCalDate.value.getFullYear(), miniCalDate.value.getMonth() + 1, 1)
+}
+
+const hasBookingsOnDate = (date: Date | null) => {
+  if (!date || !bookings.value) return false
+  const ds = formatDate(date)
+  return bookings.value.some((b) => {
+    const bd = b.booking_date.includes('T') ? b.booking_date.split('T')[0] : b.booking_date
+    return bd === ds
+  })
+}
+
+const isMiniCalToday = (date: Date | null) => {
+  if (!date) return false
+  return date.toDateString() === new Date().toDateString()
+}
+
+const isMiniCalSelected = (date: Date | null) => {
+  if (!date) return false
+  return date.toDateString() === currentDate.value.toDateString()
+}
+
+const selectMiniCalDay = (date: Date | null) => {
+  if (!date) return
+  currentDate.value = new Date(date)
+}
 </script>
 
 <template>
@@ -792,8 +848,8 @@ const forceRefreshCalendar = async () => {
               variant="ghost"
               size="sm"
               icon="i-lucide-refresh-cw"
-              @click="forceRefreshCalendar"
               title="Refresh calendar data"
+              @click="forceRefreshCalendar"
             >
               Refresh
             </UButton>
@@ -841,6 +897,76 @@ const forceRefreshCalendar = async () => {
     </template>
 
     <template #body>
+      <div class="flex h-full">
+        <!-- ── LEFT: Mini calendar sidebar ─────────────────── -->
+        <div class="w-52 flex-shrink-0 flex flex-col gap-3 p-3 border-r border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <!-- Mini Calendar Card -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm p-3">
+            <!-- Month nav -->
+            <div class="flex items-center justify-between mb-2.5">
+              <button
+                class="w-6 h-6 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-xs transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+                @click="prevMiniMonth"
+              >
+                ‹
+              </button>
+              <span class="text-xs font-semibold text-navy-500 dark:text-navy-300">{{ miniCalMonthName }}</span>
+              <button
+                class="w-6 h-6 rounded-md border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 dark:text-gray-400 text-xs transition-all hover:bg-navy-500 hover:text-white hover:border-navy-500"
+                @click="nextMiniMonth"
+              >
+                ›
+              </button>
+            </div>
+
+            <!-- Day headers Mo Tu We Th Fr Sa Su -->
+            <div class="grid grid-cols-7 mb-0.5">
+              <div
+                v-for="d in ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']"
+                :key="d"
+                class="w-6 text-center text-[8px] font-bold text-slate-400 dark:text-gray-500 uppercase py-0.5"
+              >
+                {{ d }}
+              </div>
+            </div>
+
+            <!-- Day cells -->
+            <div class="grid grid-cols-7" style="gap:1px">
+              <template v-for="(date, i) in miniCalDays" :key="i">
+                <div v-if="!date" class="w-6 h-6" />
+                <button
+                  v-else
+                  class="relative w-6 h-6 flex items-center justify-center rounded-[5px] text-[10px] font-medium transition-all"
+                  :class="[
+                    isMiniCalSelected(date)
+                      ? 'bg-navy-500 text-white font-bold'
+                      : isMiniCalToday(date)
+                        ? 'text-navy-500 dark:text-navy-300 font-bold hover:bg-slate-100 dark:hover:bg-gray-800'
+                        : 'text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-navy-500'
+                  ]"
+                  @click="selectMiniCalDay(date)"
+                >
+                  {{ date.getDate() }}
+                  <span
+                    v-if="isMiniCalToday(date) && !isMiniCalSelected(date)"
+                    class="absolute bottom-[1px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-navy-500"
+                  />
+                  <span
+                    v-if="isMiniCalToday(date) && isMiniCalSelected(date)"
+                    class="absolute bottom-[1px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-white"
+                  />
+                  <span
+                    v-if="hasBookingsOnDate(date) && !isMiniCalSelected(date)"
+                    class="absolute top-[2px] right-[2px] w-[3px] h-[3px] rounded-full bg-blue-400"
+                  />
+                </button>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── RIGHT: Main calendar ───────────────────────── -->
+        <div class="flex-1 flex flex-col overflow-hidden">
       <!-- Week View - Calendar Grid -->
       <div v-if="viewMode === 'week'" class="h-full flex flex-col bg-white dark:bg-gray-900">
         <!-- Week Days Header -->
@@ -1047,6 +1173,10 @@ const forceRefreshCalendar = async () => {
           </div>
         </div>
       </div>
+        </div>
+        <!-- end main calendar -->
+      </div>
+      <!-- end flex body wrapper -->
     </template>
   </UDashboardPanel>
 
@@ -1057,115 +1187,115 @@ const forceRefreshCalendar = async () => {
 
     <!-- Modal Panel -->
     <div class="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-        <!-- Header -->
-        <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
-            {{ editingBooking ? 'Edit Booking' : 'Create New Booking' }}
-          </h3>
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
+          {{ editingBooking ? 'Edit Booking' : 'Create New Booking' }}
+        </h3>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-x"
+          @click="closeModal"
+        />
+      </div>
+
+      <!-- Form Content -->
+      <div class="flex-1 overflow-y-auto p-6">
+        <div class="space-y-6">
+          <UFormGroup label="Date" required>
+            <UInput
+              v-model="newBooking.booking_date"
+              type="date"
+              required
+            />
+          </UFormGroup>
+
+          <UFormGroup label="Time" required>
+            <select
+              v-model="newBooking.start_time"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              required
+            >
+              <option value="">
+                Select time
+              </option>
+              <option v-for="time in timeSlots" :key="time" :value="time">
+                {{ time }}
+              </option>
+            </select>
+          </UFormGroup>
+
+          <UFormGroup label="Customer" required>
+            <select
+              v-model="newBooking.customer_id"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              required
+            >
+              <option value="">
+                Select customer
+              </option>
+              <option v-for="customer in clients" :key="(customer as any)?.id" :value="(customer as any)?.id">
+                {{ (customer as any)?.full_name || (customer as any)?.email || 'Unknown Customer' }}
+              </option>
+            </select>
+          </UFormGroup>
+
+          <UFormGroup label="Employee" required>
+            <select
+              v-model="newBooking.employee_id"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              required
+            >
+              <option value="">
+                Select employee
+              </option>
+              <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+                {{ `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || employee.email || 'Unknown Employee' }}
+              </option>
+            </select>
+          </UFormGroup>
+
+          <UFormGroup label="Service" required>
+            <select
+              v-model="newBooking.service_id"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              required
+            >
+              <option value="">
+                Select service
+              </option>
+              <option v-for="service in services" :key="service.id" :value="service.id">
+                {{ `${service.name || 'Unknown Service'} - $${service.price || 0}` }}
+              </option>
+            </select>
+          </UFormGroup>
+
+          <UFormGroup label="Notes">
+            <UTextarea
+              v-model="newBooking.notes"
+              placeholder="Additional notes..."
+            />
+          </UFormGroup>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="p-6 border-t border-slate-200 dark:border-gray-700">
+        <div class="flex justify-end gap-3">
           <UButton
+            label="Cancel"
             color="neutral"
-            variant="ghost"
-            icon="i-lucide-x"
+            variant="outline"
             @click="closeModal"
           />
+          <UButton
+            :label="editingBooking ? 'Update Booking' : 'Create Booking'"
+            :loading="loading"
+            @click="createBooking"
+          />
         </div>
-
-        <!-- Form Content -->
-        <div class="flex-1 overflow-y-auto p-6">
-          <div class="space-y-6">
-            <UFormGroup label="Date" required>
-              <UInput
-                v-model="newBooking.booking_date"
-                type="date"
-                required
-              />
-            </UFormGroup>
-
-            <UFormGroup label="Time" required>
-              <select
-                v-model="newBooking.start_time"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                required
-              >
-                <option value="">
-                  Select time
-                </option>
-                <option v-for="time in timeSlots" :key="time" :value="time">
-                  {{ time }}
-                </option>
-              </select>
-            </UFormGroup>
-
-            <UFormGroup label="Customer" required>
-              <select
-                v-model="newBooking.customer_id"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                required
-              >
-                <option value="">
-                  Select customer
-                </option>
-                <option v-for="customer in clients" :key="(customer as any)?.id" :value="(customer as any)?.id">
-                  {{ (customer as any)?.full_name || (customer as any)?.email || 'Unknown Customer' }}
-                </option>
-              </select>
-            </UFormGroup>
-
-            <UFormGroup label="Employee" required>
-              <select
-                v-model="newBooking.employee_id"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                required
-              >
-                <option value="">
-                  Select employee
-                </option>
-                <option v-for="employee in employees" :key="employee.id" :value="employee.id">
-                  {{ `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || employee.email || 'Unknown Employee' }}
-                </option>
-              </select>
-            </UFormGroup>
-
-            <UFormGroup label="Service" required>
-              <select
-                v-model="newBooking.service_id"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                required
-              >
-                <option value="">
-                  Select service
-                </option>
-                <option v-for="service in services" :key="service.id" :value="service.id">
-                  {{ `${service.name || 'Unknown Service'} - $${service.price || 0}` }}
-                </option>
-              </select>
-            </UFormGroup>
-
-            <UFormGroup label="Notes">
-              <UTextarea
-                v-model="newBooking.notes"
-                placeholder="Additional notes..."
-              />
-            </UFormGroup>
-          </div>
-        </div>
-
-        <!-- Footer Actions -->
-        <div class="p-6 border-t border-slate-200 dark:border-gray-700">
-          <div class="flex justify-end gap-3">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="outline"
-              @click="closeModal"
-            />
-            <UButton
-              :label="editingBooking ? 'Update Booking' : 'Create Booking'"
-              :loading="loading"
-              @click="createBooking"
-            />
-          </div>
-        </div>
+      </div>
     </div>
   </div>
 </template>
