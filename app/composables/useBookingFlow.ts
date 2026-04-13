@@ -13,28 +13,14 @@ export interface BookingFlowState {
   clientProfileId: string | null
   selectedServices: string[]
   serviceBookings: ServiceBooking[]
-  customerInfo: {
-    firstName: string
-    lastName: string
-    email: string
-    phone: string
-    gender: 'male' | 'female' | 'other' | ''
-  }
-  existingCustomerId: string | null
+  customerId: string | null
 }
 
 const bookingState = ref<BookingFlowState>({
   clientProfileId: null,
   selectedServices: [],
   serviceBookings: [],
-  customerInfo: {
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    gender: ''
-  },
-  existingCustomerId: null
+  customerId: null
 })
 
 const currentStep = ref(1)
@@ -42,30 +28,24 @@ const currentStep = ref(1)
 export const useBookingFlow = () => {
   const resetBooking = () => {
     const savedClientProfileId = bookingState.value.clientProfileId
+    const savedCustomerId = bookingState.value.customerId
     bookingState.value = {
-      clientProfileId: savedClientProfileId, // Preserve the client profile ID
+      clientProfileId: savedClientProfileId,
       selectedServices: [],
       serviceBookings: [],
-      customerInfo: {
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        gender: ''
-      },
-      existingCustomerId: null
+      customerId: savedCustomerId // keep customer logged-in across bookings
     }
     currentStep.value = 1
   }
 
   const goToStep = (step: number) => {
-    if (step >= 1 && step <= 4) {
+    if (step >= 1 && step <= 3) {
       currentStep.value = step
     }
   }
 
   const nextStep = () => {
-    if (currentStep.value < 4) {
+    if (currentStep.value < 3) {
       currentStep.value++
     }
   }
@@ -93,8 +73,7 @@ export const useBookingFlow = () => {
   })
 
   const isComplete = computed(() => {
-    const info = bookingState.value.customerInfo
-    return info.firstName && info.lastName && info.email && info.phone && info.gender
+    return bookingState.value.customerId !== null
   })
 
   // Helper functions for service bookings

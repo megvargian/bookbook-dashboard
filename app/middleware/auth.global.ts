@@ -45,6 +45,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/login')
   }
 
+  // Block customer-role users from accessing the dashboard
+  if (user.value?.user_metadata?.role === 'customer' && !isBookingRoute && to.path !== '/login') {
+    return navigateTo('/login')
+  }
+
   // If user is authenticated and trying to access auth pages (but allow booking pages)
   if (user.value && publicRoutes.includes(to.path) && to.path !== '/book' && !isBookingRoute) {
     return navigateTo('/')

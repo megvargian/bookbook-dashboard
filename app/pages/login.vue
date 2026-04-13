@@ -78,10 +78,15 @@ const user = useSupabaseUser()
 const router = useRouter()
 const toast = useToast()
 
-// Redirect if already logged in
+// Redirect if already logged in (but not if customer — they shouldn't be on the dashboard)
 watchEffect(() => {
   if (user.value) {
-    router.push('/')
+    if (user.value.user_metadata?.role === 'customer') {
+      // Sign customer out — they should use their booking link
+      supabase.auth.signOut()
+    } else {
+      router.push('/')
+    }
   }
 })
 
