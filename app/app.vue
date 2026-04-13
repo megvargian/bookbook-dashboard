@@ -36,7 +36,7 @@ useHead({
     { key: 'theme-color', name: 'theme-color', content: color }
   ],
   link: [
-    { rel: 'icon', href: '/favicon.ico' }
+    { rel: 'icon', type: 'image/png', href: '/bookbook-fav-icon-1.png' }
   ],
   htmlAttrs: {
     lang: 'en'
