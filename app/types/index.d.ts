@@ -49,7 +49,7 @@ export interface Employee {
   is_active: boolean
   start_working_hour?: string
   end_working_hours?: string
-  working_week_days?: string
+  working_week_days?: string | string[]
 }
 
 export interface Stat {

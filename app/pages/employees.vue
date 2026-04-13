@@ -100,23 +100,23 @@ const newEmployee = ref<{
   working_week_days: ''
 })
 
+const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
 const editEmployee = ref<{
   full_name: string
   email: string
   phone_number?: string
-  role: 'employee' | 'admin'
   start_working_hour?: string
   end_working_hours?: string
-  working_week_days?: string
 }>({
   full_name: '',
   email: '',
   phone_number: '',
-  role: 'employee',
   start_working_hour: '',
-  end_working_hours: '',
-  working_week_days: ''
+  end_working_hours: ''
 })
+
+const editWorkingDays = ref<string[]>([])
 
 const filteredEmployees = computed(() => {
   return employees.value.filter((employee) => {
@@ -275,13 +275,14 @@ async function openEditModal(employee: Employee) {
     full_name: employee.full_name || '',
     email: employee.email || '',
     phone_number: employee.phone_number || '',
-    role: 'employee',
     start_working_hour: employee.start_working_hour || '',
-    end_working_hours: employee.end_working_hours || '',
-    working_week_days: Array.isArray(employee.working_week_days)
-      ? employee.working_week_days.join(', ')
-      : employee.working_week_days || ''
+    end_working_hours: employee.end_working_hours || ''
   }
+  editWorkingDays.value = Array.isArray(employee.working_week_days)
+    ? employee.working_week_days
+    : employee.working_week_days
+      ? employee.working_week_days.split(',').map((s: string) => s.trim()).filter(Boolean)
+      : []
 
   // Load current services for this employee
   try {
@@ -322,12 +323,9 @@ async function updateEmployee() {
     const updateData: Partial<Employee> = {
       full_name: editEmployee.value.full_name,
       phone_number: editEmployee.value.phone_number,
-      role: editEmployee.value.role,
       start_working_hour: editEmployee.value.start_working_hour,
       end_working_hours: editEmployee.value.end_working_hours,
-      working_week_days: editEmployee.value.working_week_days
-        ? editEmployee.value.working_week_days.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
-        : []
+      working_week_days: editWorkingDays.value
     }
 
     const { error } = await supabase
@@ -352,6 +350,7 @@ async function updateEmployee() {
     showEditModal.value = false
     editingEmployee.value = null
     editSelectedServices.value = []
+    editWorkingDays.value = []
     await refreshEmployees()
   } catch (error) {
     console.error('Error updating employee:', error)
@@ -520,9 +519,8 @@ async function removeEmployee(employeeId: string) {
             No services available
           </div>
 
-          <!-- Debug info -->
-          <div v-if="serviceOptions.length" class="mt-1 text-xs text-gray-400">
-            Debug: {{ selectedServices.length }} selected, {{ serviceOptions.length }} available
+          <div v-if="serviceOptions.length > 0" class="mt-1 text-xs text-gray-400">
+            {{ selectedServices.length }} selected
           </div>
         </UFormField>
 
@@ -538,114 +536,149 @@ async function removeEmployee(employeeId: string) {
     </UCard>
   </div>
 
-  <!-- Edit Employee Form -->
-  <div v-if="showEditModal" class="mt-6">
-    <UCard>
-      <template #header>
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-              Edit Employee
-            </h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Update employee information
-            </p>
-          </div>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-heroicons-x-mark-20-solid"
-            class="-my-1"
-            @click="showEditModal = false"
-          />
+  <!-- Edit Employee Modal (centered popup) -->
+  <div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" @click="showEditModal = false" />
+    <div class="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
+            Edit Employee
+          </h3>
+          <p class="text-sm text-slate-400 dark:text-gray-400 mt-0.5">
+            Update employee information
+          </p>
         </div>
-      </template>
-      <UForm
-        :schema="employeeSchema.partial({ password: true })"
-        :state="editEmployee"
-        class="space-y-4"
-        @submit="updateEmployee"
-      >
-        <UFormField name="full_name" label="Full Name" required>
-          <UInput v-model="editEmployee.full_name" placeholder="John Doe" />
-        </UFormField>
+        <button
+          class="w-8 h-8 rounded-lg border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white transition-all"
+          @click="showEditModal = false"
+        >
+          <UIcon name="i-lucide-x" class="w-4 h-4" />
+        </button>
+      </div>
 
-        <UFormField name="email" label="Email" required>
-          <UInput
+      <!-- Body -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+        <!-- Full Name -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Full Name <span class="text-red-500">*</span></label>
+          <input
+            v-model="editEmployee.full_name"
+            type="text"
+            placeholder="John Doe"
+            class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+          >
+        </div>
+
+        <!-- Email (read-only) -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Email</label>
+          <input
             v-model="editEmployee.email"
             type="email"
-            placeholder="john@example.com"
             disabled
-          />
-        </UFormField>
-
-        <UFormField name="phone_number" label="Phone Number">
-          <UInput v-model="editEmployee.phone_number" placeholder="+1234567890" />
-        </UFormField>
-
-        <UFormField name="role" label="Role">
-          <USelect
-            v-model="editEmployee.role"
-            :options="[
-              { label: 'Employee', value: 'employee' },
-              { label: 'Admin', value: 'admin' }
-            ]"
-          />
-        </UFormField>
-
-        <div class="grid grid-cols-2 gap-4">
-          <UFormField name="start_working_hour" label="Start Hour">
-            <UInput v-model="editEmployee.start_working_hour" type="time" />
-          </UFormField>
-
-          <UFormField name="end_working_hours" label="End Hour">
-            <UInput v-model="editEmployee.end_working_hours" type="time" />
-          </UFormField>
+            class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-slate-50 dark:bg-gray-800 text-sm text-slate-400 dark:text-gray-500 cursor-not-allowed"
+          >
         </div>
 
-        <UFormField name="working_week_days" label="Working Days">
-          <UInput v-model="editEmployee.working_week_days" placeholder="Monday, Tuesday, Wednesday, Thursday, Friday (comma-separated)" />
-        </UFormField>
+        <!-- Phone Number -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Phone Number</label>
+          <input
+            v-model="editEmployee.phone_number"
+            type="tel"
+            placeholder="+1234567890"
+            class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+          >
+        </div>
 
-        <UFormField name="assigned_services" label="Assigned Services">
-          <div v-if="servicesLoading" class="text-sm text-gray-500">
+        <!-- Working Hours -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Start Hour</label>
+            <input
+              v-model="editEmployee.start_working_hour"
+              type="time"
+              class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+            >
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">End Hour</label>
+            <input
+              v-model="editEmployee.end_working_hours"
+              type="time"
+              class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+            >
+          </div>
+        </div>
+
+        <!-- Working Days (multi-select) -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-2">Working Days</label>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="day in weekDays"
+              :key="day"
+              type="button"
+              class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all"
+              :class="[
+                editWorkingDays.includes(day)
+                  ? 'bg-navy-500 text-white border-navy-500'
+                  : 'bg-white dark:bg-gray-900 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:border-navy-400'
+              ]"
+              @click="editWorkingDays.includes(day) ? editWorkingDays.splice(editWorkingDays.indexOf(day), 1) : editWorkingDays.push(day)"
+            >
+              {{ day.slice(0, 3) }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Assigned Services -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-2">Assigned Services</label>
+          <div v-if="servicesLoading" class="text-sm text-slate-400">
             Loading services...
           </div>
-          <div v-else-if="!serviceOptions.length" class="text-sm text-red-500">
-            No services available ({{ services.length }} services loaded, {{ serviceOptions.length }} options generated)
-          </div>
-          <div v-else class="mb-2 text-xs text-gray-500">
-            {{ serviceOptions.length }} services available
-          </div>
-          <select
-            v-if="serviceOptions.length > 0"
-            v-model="editSelectedServices"
-            multiple
-            class="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-600 min-h-[100px]"
-          >
-            <option v-for="serviceName in serviceOptions" :key="serviceName" :value="serviceName">
+          <div v-else-if="serviceOptions.length > 0" class="flex flex-wrap gap-2">
+            <button
+              v-for="serviceName in serviceOptions"
+              :key="serviceName"
+              type="button"
+              class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all"
+              :class="[
+                editSelectedServices.includes(serviceName)
+                  ? 'bg-navy-500 text-white border-navy-500'
+                  : 'bg-white dark:bg-gray-900 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:border-navy-400'
+              ]"
+              @click="editSelectedServices.includes(serviceName) ? editSelectedServices.splice(editSelectedServices.indexOf(serviceName), 1) : editSelectedServices.push(serviceName)"
+            >
               {{ serviceName }}
-            </option>
-          </select>
-          <div v-else class="text-sm text-gray-500 p-2 border rounded">
+            </button>
+          </div>
+          <p v-else class="text-sm text-slate-400">
             No services available
-          </div>
-          <!-- Debug info -->
-          <div v-if="serviceOptions.length > 0" class="mt-1 text-xs text-gray-400">
-            Debug: {{ editSelectedServices.length }} selected, {{ serviceOptions.length }} available
-            <br>Services: {{ serviceOptions.join(', ') }}
-          </div>
-        </UFormField>
-
-        <div class="flex gap-2 justify-end">
-          <UButton type="button" variant="outline" @click="showEditModal = false">
-            Cancel
-          </UButton>
-          <UButton type="submit" :loading="loading">
-            Update Employee
-          </UButton>
+          </p>
         </div>
-      </UForm>
-    </UCard>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-6 border-t border-slate-200 dark:border-gray-700 flex justify-end gap-3">
+        <button
+          class="px-4 py-2 text-sm font-medium border border-slate-200 dark:border-gray-700 rounded-lg text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 transition-all"
+          @click="showEditModal = false"
+        >
+          Cancel
+        </button>
+        <button
+          class="px-5 py-2 text-sm font-semibold bg-navy-500 hover:bg-navy-600 text-white rounded-lg transition-all flex items-center gap-2 disabled:opacity-60"
+          :disabled="loading"
+          @click="updateEmployee"
+        >
+          <UIcon v-if="loading" name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+          Save Changes
+        </button>
+      </div>
+    </div>
   </div>
 </template>

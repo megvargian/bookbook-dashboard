@@ -49,17 +49,6 @@ const items = (employee: Employee): DropdownMenuItem[] => [{
       </div>
 
       <div class="flex items-center gap-3">
-        <UBadge
-          :label="employee.role"
-          :color="employee.role === 'admin' ? 'blue' : 'gray'"
-          size="xs"
-        />
-        <UBadge
-          :label="employee.is_active ? 'Active' : 'Inactive'"
-          :color="employee.is_active ? 'green' : 'red'"
-          size="xs"
-        />
-
         <UDropdownMenu :items="items(employee)" :content="{ align: 'end' }">
           <UButton
             icon="i-lucide-ellipsis-vertical"

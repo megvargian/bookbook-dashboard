@@ -292,7 +292,7 @@ watchEffect(() => {
           time: extractedTime,
           customer_name: booking.client_profile?.first_name + ' ' + booking.client_profile?.last_name || 'Unknown',
           service_name: booking.service?.name || 'Unknown Service',
-          employee_name: booking.employee ? `${booking.employee.first_name} ${booking.employee.last_name}` : 'Unknown Employee'
+          employee_name: booking.employee ? booking.employee.full_name : 'Unknown Employee'
         })
       })
     }
@@ -967,212 +967,212 @@ const selectMiniCalDay = (date: Date | null) => {
 
         <!-- ── RIGHT: Main calendar ───────────────────────── -->
         <div class="flex-1 flex flex-col overflow-hidden">
-      <!-- Week View - Calendar Grid -->
-      <div v-if="viewMode === 'week'" class="h-full flex flex-col bg-white dark:bg-gray-900">
-        <!-- Week Days Header -->
-        <div class="grid grid-cols-8 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
-          <div class="p-3 text-sm font-medium text-slate-500 dark:text-gray-300 text-center border-r border-slate-200 dark:border-gray-700">
-            Time
-          </div>
-          <div
-            v-for="(day, index) in currentWeekDays"
-            :key="index"
-            class="p-3 text-center border-r border-slate-200 dark:border-gray-700 last:border-r-0"
-            :class="{ 'bg-blue-100 dark:bg-blue-900': isToday(day) }"
-          >
-            <div class="text-sm font-medium text-slate-500 dark:text-gray-300">
-              {{ weekDays[day.getDay()] }}
-            </div>
-            <div class="text-lg font-semibold mt-1" :class="{ 'text-blue-500 dark:text-blue-400': isToday(day), 'text-slate-900 dark:text-white': !isToday(day) }">
-              {{ day.getDate() }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Time Slots Grid -->
-        <div class="flex-1">
-          <div class="grid grid-cols-8">
-            <div v-for="time in timeSlots" :key="time" class="contents">
-              <!-- Time Column -->
-              <div class="p-2 text-xs text-slate-400 dark:text-gray-400 text-right border-r border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 sticky left-0 z-10 min-h-12 flex items-center justify-end">
-                {{ time }}
+          <!-- Week View - Calendar Grid -->
+          <div v-if="viewMode === 'week'" class="h-full flex flex-col bg-white dark:bg-gray-900 overflow-auto">
+            <!-- Week Days Header -->
+            <div class="grid grid-cols-8 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
+              <div class="p-3 text-sm font-medium text-slate-500 dark:text-gray-300 text-center border-r border-slate-200 dark:border-gray-700">
+                Time
               </div>
-
-              <!-- Day Columns -->
               <div
-                v-for="day in currentWeekDays"
-                :key="`${day}-${time}`"
-                class="border-r border-slate-200 dark:border-gray-700 border-b border-slate-100 dark:border-gray-800 min-h-12 p-1 cursor-pointer transition-all duration-200 relative"
-                :class="{
-                  'bg-blue-50/50 dark:bg-gray-800/20': isToday(day),
-                  'bg-white dark:bg-gray-900': !isToday(day),
-                  'bg-blue-100/60 dark:bg-blue-900/30 border-blue-500/50': selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time,
-                  'hover:bg-slate-50 dark:hover:bg-gray-800/30': !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)
-                }"
-                @click.stop="handleTimeSlotClick(day, time)"
+                v-for="(day, index) in currentWeekDays"
+                :key="index"
+                class="p-3 text-center border-r border-slate-200 dark:border-gray-700 last:border-r-0"
+                :class="{ 'bg-blue-100 dark:bg-blue-900': isToday(day) }"
               >
-                <!-- Existing Bookings -->
-                <div
-                  v-if="getBookingAtTime(day, time) && isBookingStartSlot(getBookingAtTime(day, time)!, time)"
-                  :key="getBookingAtTime(day, time)?.id"
-                  class="absolute inset-x-1 rounded-lg text-white text-xs p-2.5 cursor-pointer transition-all duration-300 z-10 outlook-booking-block"
-                  :class="getBookingColor(getBookingAtTime(day, time)!)"
-                  :style="{
-                    height: `${getBookingDurationSlots(getBookingAtTime(day, time)!) * 44 + (getBookingDurationSlots(getBookingAtTime(day, time)!) - 1) * 4}px`,
-                    minHeight: '44px'
-                  }"
-                  @click.stop="editBooking(getBookingAtTime(day, time)!)"
-                >
-                  <!-- Modern Booking Content -->
-                  <div class="flex flex-col h-full">
-                    <!-- Time Range with Icon -->
-                    <div class="flex items-center text-white font-semibold text-xs mb-2">
-                      <div class="w-1.5 h-1.5 bg-white rounded-full mr-2 opacity-90" />
-                      {{ extractTimeFromTimestamp(getBookingAtTime(day, time)!.start_time) }} -
-                      {{ extractTimeFromTimestamp(getBookingAtTime(day, time)!.end_time) }}
-                    </div>
-
-                    <!-- Customer Name -->
-                    <div class="font-bold text-sm text-white truncate mb-1">
-                      {{ getBookingAtTime(day, time)!.client_profile?.first_name || getBookingAtTime(day, time)!.customer?.full_name || 'Customer' }}
-                      {{ getBookingAtTime(day, time)!.client_profile?.last_name || '' }}
-                    </div>
-
-                    <!-- Service & Duration -->
-                    <div class="text-white/90 text-xs truncate">
-                      {{ getBookingAtTime(day, time)!.service?.name || 'Service' }}
-                      <span v-if="getBookingAtTime(day, time)!.service?.duration_service_in_s" class="text-white/70">
-                        ({{ Math.round(getBookingAtTime(day, time)!.service.duration_service_in_s / 3600 * 10) / 10 }}h)
-                      </span>
-                    </div>
-                    <div v-if="getBookingAtTime(day, time)!.employee" class="text-white/80 text-xs truncate">
-                      {{ getBookingAtTime(day, time)!.employee?.first_name }} {{ getBookingAtTime(day, time)!.employee?.last_name }}
-                    </div>
-
-                    <!-- Status Badge -->
-                    <div v-if="getBookingAtTime(day, time)!.status" class="mt-auto pt-1">
-                      <span class="inline-block px-2 py-0.5 text-xs rounded-full bg-white/25 capitalize font-medium text-white">
-                        {{ getBookingAtTime(day, time)!.status }}
-                      </span>
-                    </div>
-                  </div>
+                <div class="text-sm font-medium text-slate-500 dark:text-gray-300">
+                  {{ weekDays[day.getDay()] }}
                 </div>
-
-                <!-- Preview Booking -->
-                <div
-                  v-if="getPreviewBookingAtTime(day, time)"
-                  class="absolute inset-x-1 rounded-lg text-white text-xs p-2.5 cursor-pointer transition-all duration-300 z-20 outlook-booking-block animate-pulse"
-                  :class="getBookingColor(getPreviewBookingAtTime(day, time)!)"
-                  style="height: 44px; min-height: 44px;"
-                >
-                  <div class="flex flex-col h-full">
-                    <div class="flex items-center text-white font-semibold text-xs mb-2">
-                      <div class="w-1.5 h-1.5 bg-white rounded-full mr-2 animate-pulse" />
-                      {{ previewBooking?.start_time }}
-                    </div>
-                    <div class="font-bold text-sm text-white truncate mb-1">
-                      New Booking
-                    </div>
-                    <div class="text-white/90 text-xs">
-                      Creating...
-                    </div>
-                  </div>
+                <div class="text-lg font-semibold mt-1" :class="{ 'text-blue-500 dark:text-blue-400': isToday(day), 'text-slate-900 dark:text-white': !isToday(day) }">
+                  {{ day.getDate() }}
                 </div>
+              </div>
+            </div>
 
-                <!-- Empty Slot Hover Indicator -->
-                <div
-                  v-if="!getBookingAtTime(day, time) && !getPreviewBookingAtTime(day, time) && !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)"
-                  class="opacity-0 hover:opacity-100 transition-all duration-200 text-center w-full h-full flex items-center justify-center group"
-                >
-                  <div class="bg-gray-700/80 backdrop-blur-sm px-3 py-1 rounded-lg text-gray-300 text-xs font-medium group-hover:bg-blue-600/80 group-hover:text-white transition-all duration-200">
-                    + Add booking
+            <!-- Time Slots Grid -->
+            <div class="flex-1">
+              <div class="grid grid-cols-8">
+                <div v-for="time in timeSlots" :key="time" class="contents">
+                  <!-- Time Column -->
+                  <div class="p-2 text-xs text-slate-400 dark:text-gray-400 text-right border-r border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 sticky left-0 z-10 min-h-12 flex items-center justify-end">
+                    {{ time }}
                   </div>
-                </div>
 
-                <!-- Selected Slot Indicator -->
-                <div
-                  v-if="!getBookingAtTime(day, time) && !getPreviewBookingAtTime(day, time) && selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time"
-                  class="absolute inset-x-1 inset-y-1 rounded-lg border-2 border-blue-500 bg-blue-500/20 flex items-center justify-center animate-pulse"
-                >
-                  <div class="text-blue-300 text-xs font-medium">
-                    Selected
+                  <!-- Day Columns -->
+                  <div
+                    v-for="day in currentWeekDays"
+                    :key="`${day}-${time}`"
+                    class="border-r border-slate-200 dark:border-gray-700 border-b border-slate-100 dark:border-gray-800 min-h-12 p-1 cursor-pointer transition-all duration-200 relative"
+                    :class="{
+                      'bg-blue-50/50 dark:bg-gray-800/20': isToday(day),
+                      'bg-white dark:bg-gray-900': !isToday(day),
+                      'bg-blue-100/60 dark:bg-blue-900/30 border-blue-500/50': selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time,
+                      'hover:bg-slate-50 dark:hover:bg-gray-800/30': !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)
+                    }"
+                    @click.stop="handleTimeSlotClick(day, time)"
+                  >
+                    <!-- Existing Bookings -->
+                    <div
+                      v-if="getBookingAtTime(day, time) && isBookingStartSlot(getBookingAtTime(day, time)!, time)"
+                      :key="getBookingAtTime(day, time)?.id"
+                      class="absolute inset-x-1 rounded-lg text-white text-xs p-2.5 cursor-pointer transition-all duration-300 z-10 outlook-booking-block"
+                      :class="getBookingColor(getBookingAtTime(day, time)!)"
+                      :style="{
+                        height: `${getBookingDurationSlots(getBookingAtTime(day, time)!) * 44 + (getBookingDurationSlots(getBookingAtTime(day, time)!) - 1) * 4}px`,
+                        minHeight: '44px'
+                      }"
+                      @click.stop="editBooking(getBookingAtTime(day, time)!)"
+                    >
+                      <!-- Modern Booking Content -->
+                      <div class="flex flex-col h-full">
+                        <!-- Time Range with Icon -->
+                        <div class="flex items-center text-white font-semibold text-xs mb-2">
+                          <div class="w-1.5 h-1.5 bg-white rounded-full mr-2 opacity-90" />
+                          {{ extractTimeFromTimestamp(getBookingAtTime(day, time)!.start_time) }} -
+                          {{ extractTimeFromTimestamp(getBookingAtTime(day, time)!.end_time) }}
+                        </div>
+
+                        <!-- Customer Name -->
+                        <div class="font-bold text-sm text-white truncate mb-1">
+                          {{ getBookingAtTime(day, time)!.client_profile?.first_name || getBookingAtTime(day, time)!.customer?.full_name || 'Customer' }}
+                          {{ getBookingAtTime(day, time)!.client_profile?.last_name || '' }}
+                        </div>
+
+                        <!-- Service & Duration -->
+                        <div class="text-white/90 text-xs truncate">
+                          {{ getBookingAtTime(day, time)!.service?.name || 'Service' }}
+                          <span v-if="getBookingAtTime(day, time)!.service?.duration_service_in_s" class="text-white/70">
+                            ({{ Math.round(getBookingAtTime(day, time)!.service.duration_service_in_s / 3600 * 10) / 10 }}h)
+                          </span>
+                        </div>
+                        <div v-if="getBookingAtTime(day, time)!.employee" class="text-white/80 text-xs truncate">
+                          {{ getBookingAtTime(day, time)!.employee?.first_name }} {{ getBookingAtTime(day, time)!.employee?.last_name }}
+                        </div>
+
+                        <!-- Status Badge -->
+                        <div v-if="getBookingAtTime(day, time)!.status" class="mt-auto pt-1">
+                          <span class="inline-block px-2 py-0.5 text-xs rounded-full bg-white/25 capitalize font-medium text-white">
+                            {{ getBookingAtTime(day, time)!.status }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Preview Booking -->
+                    <div
+                      v-if="getPreviewBookingAtTime(day, time)"
+                      class="absolute inset-x-1 rounded-lg text-white text-xs p-2.5 cursor-pointer transition-all duration-300 z-20 outlook-booking-block animate-pulse"
+                      :class="getBookingColor(getPreviewBookingAtTime(day, time)!)"
+                      style="height: 44px; min-height: 44px;"
+                    >
+                      <div class="flex flex-col h-full">
+                        <div class="flex items-center text-white font-semibold text-xs mb-2">
+                          <div class="w-1.5 h-1.5 bg-white rounded-full mr-2 animate-pulse" />
+                          {{ previewBooking?.start_time }}
+                        </div>
+                        <div class="font-bold text-sm text-white truncate mb-1">
+                          New Booking
+                        </div>
+                        <div class="text-white/90 text-xs">
+                          Creating...
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Empty Slot Hover Indicator -->
+                    <div
+                      v-if="!getBookingAtTime(day, time) && !getPreviewBookingAtTime(day, time) && !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)"
+                      class="opacity-0 hover:opacity-100 transition-all duration-200 text-center w-full h-full flex items-center justify-center group"
+                    >
+                      <div class="bg-gray-700/80 backdrop-blur-sm px-3 py-1 rounded-lg text-gray-300 text-xs font-medium group-hover:bg-blue-600/80 group-hover:text-white transition-all duration-200">
+                        + Add booking
+                      </div>
+                    </div>
+
+                    <!-- Selected Slot Indicator -->
+                    <div
+                      v-if="!getBookingAtTime(day, time) && !getPreviewBookingAtTime(day, time) && selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time"
+                      class="absolute inset-x-1 inset-y-1 rounded-lg border-2 border-blue-500 bg-blue-500/20 flex items-center justify-center animate-pulse"
+                    >
+                      <div class="text-blue-300 text-xs font-medium">
+                        Selected
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Month View - Traditional Calendar -->
-      <div v-else class="h-full flex flex-col bg-white dark:bg-gray-900">
-        <!-- Month Days Header -->
-        <div class="grid grid-cols-7 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
-          <div
-            v-for="day in weekDays"
-            :key="day"
-            class="p-4 text-center text-sm font-medium text-slate-500 dark:text-gray-300 border-r border-slate-200 dark:border-gray-700 last:border-r-0"
-          >
-            {{ day }}
-          </div>
-        </div>
+          <!-- Month View - Traditional Calendar -->
+          <div v-else class="h-full flex flex-col bg-white dark:bg-gray-900 overflow-auto">
+            <!-- Month Days Header -->
+            <div class="grid grid-cols-7 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
+              <div
+                v-for="day in weekDays"
+                :key="day"
+                class="p-4 text-center text-sm font-medium text-slate-500 dark:text-gray-300 border-r border-slate-200 dark:border-gray-700 last:border-r-0"
+              >
+                {{ day }}
+              </div>
+            </div>
 
-        <!-- Month Calendar Grid -->
-        <div class="flex-1">
-          <div class="grid grid-cols-7 gap-0 h-full">
-            <div
-              v-for="(dayInfo, index) in currentMonthDays"
-              :key="index"
-              class="border-r border-slate-200 dark:border-gray-700 border-b border-slate-200 dark:border-gray-700 min-h-24 p-2 cursor-pointer transition-all duration-200 relative flex flex-col"
-              :class="{
-                'bg-slate-100/50 dark:bg-gray-800/50': !dayInfo.isCurrentMonth,
-                'bg-white dark:bg-gray-900': dayInfo.isCurrentMonth,
-                'bg-blue-50 dark:bg-blue-900/30': isToday(dayInfo.date),
-                'hover:bg-slate-50 dark:hover:bg-gray-800/30': true
-              }"
-              @click="handleMonthDayClick(dayInfo.date)"
-            >
-              <!-- Date Number -->
-              <div class="mb-2 text-right">
-                <span
-                  class="text-sm font-medium"
+            <!-- Month Calendar Grid -->
+            <div class="flex-1">
+              <div class="grid grid-cols-7 gap-0 h-full">
+                <div
+                  v-for="(dayInfo, index) in currentMonthDays"
+                  :key="index"
+                  class="border-r border-slate-200 dark:border-gray-700 border-b border-slate-200 dark:border-gray-700 min-h-24 p-2 cursor-pointer transition-all duration-200 relative flex flex-col"
                   :class="{
-                    'text-slate-300 dark:text-gray-500': !dayInfo.isCurrentMonth,
-                    'text-slate-700 dark:text-white': dayInfo.isCurrentMonth && !isToday(dayInfo.date),
-                    'text-blue-500 dark:text-blue-400 font-bold': isToday(dayInfo.date)
+                    'bg-slate-100/50 dark:bg-gray-800/50': !dayInfo.isCurrentMonth,
+                    'bg-white dark:bg-gray-900': dayInfo.isCurrentMonth,
+                    'bg-blue-50 dark:bg-blue-900/30': isToday(dayInfo.date),
+                    'hover:bg-slate-50 dark:hover:bg-gray-800/30': true
                   }"
+                  @click="handleMonthDayClick(dayInfo.date)"
                 >
-                  {{ dayInfo.date.getDate() }}
-                </span>
-              </div>
-
-              <!-- Booking Indicators -->
-              <div class="flex-1 space-y-1">
-                <div
-                  v-for="(booking, bookingIndex) in getBookingsForDate(dayInfo.date).slice(0, 3)"
-                  :key="booking.id"
-                  class="w-full rounded px-2 py-1 text-xs cursor-pointer transition-all duration-200 truncate"
-                  :class="getBookingColor(booking)"
-                  @click.stop="editBooking(booking)"
-                >
-                  <div class="font-medium truncate">
-                    {{ extractTimeFromTimestamp(booking.start_time) }}
-                    {{ booking.client_profile?.first_name || booking.customer?.full_name || 'Customer' }}
+                  <!-- Date Number -->
+                  <div class="mb-2 text-right">
+                    <span
+                      class="text-sm font-medium"
+                      :class="{
+                        'text-slate-300 dark:text-gray-500': !dayInfo.isCurrentMonth,
+                        'text-slate-700 dark:text-white': dayInfo.isCurrentMonth && !isToday(dayInfo.date),
+                        'text-blue-500 dark:text-blue-400 font-bold': isToday(dayInfo.date)
+                      }"
+                    >
+                      {{ dayInfo.date.getDate() }}
+                    </span>
                   </div>
-                </div>
 
-                <!-- More bookings indicator -->
-                <div
-                  v-if="getBookingsForDate(dayInfo.date).length > 3"
-                  class="text-xs text-slate-400 dark:text-gray-400 px-2"
-                >
-                  +{{ getBookingsForDate(dayInfo.date).length - 3 }} more
+                  <!-- Booking Indicators -->
+                  <div class="flex-1 space-y-1">
+                    <div
+                      v-for="(booking, bookingIndex) in getBookingsForDate(dayInfo.date).slice(0, 3)"
+                      :key="booking.id"
+                      class="w-full rounded px-2 py-1 text-xs cursor-pointer transition-all duration-200 truncate"
+                      :class="getBookingColor(booking)"
+                      @click.stop="editBooking(booking)"
+                    >
+                      <div class="font-medium truncate">
+                        {{ extractTimeFromTimestamp(booking.start_time) }}
+                        {{ booking.client_profile?.first_name || booking.customer?.full_name || 'Customer' }}
+                      </div>
+                    </div>
+
+                    <!-- More bookings indicator -->
+                    <div
+                      v-if="getBookingsForDate(dayInfo.date).length > 3"
+                      class="text-xs text-slate-400 dark:text-gray-400 px-2"
+                    >
+                      +{{ getBookingsForDate(dayInfo.date).length - 3 }} more
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
         </div>
         <!-- end main calendar -->
       </div>
@@ -1244,14 +1244,14 @@ const selectMiniCalDay = (date: Date | null) => {
           <UFormGroup label="Employee" required>
             <select
               v-model="newBooking.employee_id"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-navy-500 font-medium dark:bg-gray-800 dark:border-gray-600 dark:text-white"
               required
             >
-              <option value="">
+              <option value="" class="text-slate-400 font-normal">
                 Select employee
               </option>
-              <option v-for="employee in employees" :key="employee.id" :value="employee.id">
-                {{ `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || employee.email || 'Unknown Employee' }}
+              <option v-for="employee in employees" :key="employee.id" :value="employee.id" class="text-navy-500 dark:text-white">
+                {{ (employee as any).full_name || employee.email || 'Unknown Employee' }}
               </option>
             </select>
           </UFormGroup>

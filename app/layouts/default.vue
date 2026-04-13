@@ -23,6 +23,13 @@ const baseLinks = [[{
     open.value = false
   }
 }, {
+  label: 'Appointments',
+  icon: 'i-lucide-calendar-check',
+  to: '/appointments',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
   label: 'Services',
   icon: 'i-lucide-wrench',
   to: '/services',
@@ -71,6 +78,10 @@ const links = computed(() => {
     group.filter((link) => {
       // Filter Statistics for admin users only (no access for employees)
       if (link.label === 'Statistics') {
+        return userStore.clientProfile?.role === 'admin'
+      }
+      // Filter Appointments for admin only
+      if (link.label === 'Appointments') {
         return userStore.clientProfile?.role === 'admin'
       }
       // Filter Services and Employees for admin clients only
