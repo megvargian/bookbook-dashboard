@@ -30,6 +30,7 @@ const items = (employee: Employee): DropdownMenuItem[] => [{
     >
       <div class="flex items-center gap-3 min-w-0">
         <UAvatar
+          :src="employee.profile_picture || undefined"
           :alt="employee.full_name"
           :text="employee.full_name?.split(' ').map(n => n[0]).join('') || 'E'"
           size="md"

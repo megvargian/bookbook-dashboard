@@ -253,7 +253,13 @@ watchEffect(() => {
             @click="selectEmployee(employee.id, `${employee.first_name} ${employee.last_name}`)"
           >
             <div class="flex flex-col items-center text-center">
-              <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold mb-4">
+              <img
+                v-if="employee.profile_picture"
+                :src="employee.profile_picture"
+                :alt="employee.full_name"
+                class="w-20 h-20 rounded-full object-cover mb-4"
+              >
+              <div v-else class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold mb-4">
                 {{ employee.first_name?.charAt(0) }}{{ employee.last_name?.charAt(0) }}
               </div>
               <h3 class="text-lg font-semibold text-white mb-1">

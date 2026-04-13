@@ -266,147 +266,199 @@ async function removeService(serviceId: string) {
     </template>
   </UDashboardPanel>
 
-  <!-- Add Service Form -->
-  <div v-if="showAddModal" class="mt-6">
-    <UCard>
-      <template #header>
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-              Add New Service
-            </h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Create a new service offering
-            </p>
-          </div>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-heroicons-x-mark-20-solid"
-            class="-my-1"
-            @click="showAddModal = false"
+  <!-- Add Service Modal -->
+  <div v-if="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" @click="showAddModal = false" />
+    <div class="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
+            Add New Service
+          </h3>
+          <p class="text-sm text-slate-400 dark:text-gray-400 mt-0.5">
+            Create a new service offering
+          </p>
+        </div>
+        <button
+          class="w-8 h-8 rounded-lg border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white transition-all"
+          @click="showAddModal = false"
+        >
+          <UIcon name="i-lucide-x" class="w-4 h-4" />
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Service Name <span class="text-red-500">*</span></label>
+          <input
+            v-model="newService.name"
+            type="text"
+            placeholder="House Cleaning"
+            class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+          >
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Description</label>
+          <textarea
+            v-model="newService.description"
+            rows="3"
+            placeholder="Detailed description of the service"
+            class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500 resize-none"
           />
         </div>
-      </template>
-      <UForm
-        :schema="serviceSchema"
-        :state="newService"
-        class="space-y-4"
-        @submit="addService"
-      >
-        <UFormField name="name" label="Service Name" required>
-          <UInput v-model="newService.name" placeholder="House Cleaning" />
-        </UFormField>
-
-        <UFormField name="description" label="Description">
-          <UTextarea v-model="newService.description" placeholder="Detailed description of the service" />
-        </UFormField>
 
         <div class="grid grid-cols-2 gap-4">
-          <UFormField name="price" label="Price ($)" required>
-            <UInput
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Price ($) <span class="text-red-500">*</span></label>
+            <input
               v-model.number="newService.price"
               type="number"
               step="0.01"
               placeholder="99.99"
-            />
-          </UFormField>
-
-          <UFormField name="duration_service_h" label="Duration (hours)">
-            <UInput
-              v-model.number="newService.duration_service_h"
+              class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+            >
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Duration (hours)</label>
+            <input
+              v-model.number="newService.duration_hours"
               type="number"
               step="0.5"
               placeholder="2.5"
-            />
-          </UFormField>
+              class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+            >
+          </div>
         </div>
 
-        <UFormField name="categories" label="Categories">
-          <UInput v-model="newService.categories" placeholder="Cleaning, Maintenance, Repair (comma-separated)" />
-        </UFormField>
-
-        <div class="flex gap-2 justify-end">
-          <UButton type="button" variant="outline" @click="showAddModal = false">
-            Cancel
-          </UButton>
-          <UButton type="submit" :loading="loading">
-            Add Service
-          </UButton>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Categories</label>
+          <input
+            v-model="newService.categories"
+            type="text"
+            placeholder="Cleaning, Maintenance, Repair (comma-separated)"
+            class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+          >
         </div>
-      </UForm>
-    </UCard>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-6 border-t border-slate-200 dark:border-gray-700 flex justify-end gap-3">
+        <button
+          class="px-4 py-2 text-sm font-medium border border-slate-200 dark:border-gray-700 rounded-lg text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 transition-all"
+          @click="showAddModal = false"
+        >
+          Cancel
+        </button>
+        <button
+          class="px-5 py-2 text-sm font-semibold bg-navy-500 hover:bg-navy-600 text-white rounded-lg transition-all flex items-center gap-2 disabled:opacity-60"
+          :disabled="loading"
+          @click="addService"
+        >
+          <UIcon v-if="loading" name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+          Add Service
+        </button>
+      </div>
+    </div>
   </div>
 
-  <!-- Edit Service Form -->
-  <div v-if="showEditModal" class="mt-6">
-    <UCard>
-      <template #header>
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-              Edit Service
-            </h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Update service information
-            </p>
-          </div>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-heroicons-x-mark-20-solid"
-            class="-my-1"
-            @click="showEditModal = false"
+  <!-- Edit Service Modal -->
+  <div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" @click="showEditModal = false" />
+    <div class="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
+            Edit Service
+          </h3>
+          <p class="text-sm text-slate-400 dark:text-gray-400 mt-0.5">
+            Update service information
+          </p>
+        </div>
+        <button
+          class="w-8 h-8 rounded-lg border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white transition-all"
+          @click="showEditModal = false"
+        >
+          <UIcon name="i-lucide-x" class="w-4 h-4" />
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Service Name <span class="text-red-500">*</span></label>
+          <input
+            v-model="editService.name"
+            type="text"
+            placeholder="House Cleaning"
+            class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+          >
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Description</label>
+          <textarea
+            v-model="editService.description"
+            rows="3"
+            placeholder="Detailed description of the service"
+            class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500 resize-none"
           />
         </div>
-      </template>
-      <UForm
-        :schema="serviceSchema"
-        :state="editService"
-        class="space-y-4"
-        @submit="updateService"
-      >
-        <UFormField name="name" label="Service Name" required>
-          <UInput v-model="editService.name" placeholder="House Cleaning" />
-        </UFormField>
-
-        <UFormField name="description" label="Description">
-          <UTextarea v-model="editService.description" placeholder="Detailed description of the service" />
-        </UFormField>
 
         <div class="grid grid-cols-2 gap-4">
-          <UFormField name="price" label="Price ($)" required>
-            <UInput
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Price ($) <span class="text-red-500">*</span></label>
+            <input
               v-model.number="editService.price"
               type="number"
               step="0.01"
               placeholder="99.99"
-            />
-          </UFormField>
-
-          <UFormField name="duration_service_h" label="Duration (hours)">
-            <UInput
+              class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+            >
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Duration (hours)</label>
+            <input
               v-model.number="editService.duration_hours"
               type="number"
               step="0.5"
               placeholder="2.5"
-            />
-          </UFormField>
+              class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+            >
+          </div>
         </div>
 
-        <UFormField name="categories" label="Categories">
-          <UInput v-model="editService.categories" placeholder="Cleaning, Maintenance, Repair (comma-separated)" />
-        </UFormField>
-
-        <div class="flex gap-2 justify-end">
-          <UButton type="button" variant="outline" @click="showEditModal = false">
-            Cancel
-          </UButton>
-          <UButton type="submit" :loading="loading">
-            Update Service
-          </UButton>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Categories</label>
+          <input
+            v-model="editService.categories"
+            type="text"
+            placeholder="Cleaning, Maintenance, Repair (comma-separated)"
+            class="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+          >
         </div>
-      </UForm>
-    </UCard>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-6 border-t border-slate-200 dark:border-gray-700 flex justify-end gap-3">
+        <button
+          class="px-4 py-2 text-sm font-medium border border-slate-200 dark:border-gray-700 rounded-lg text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 transition-all"
+          @click="showEditModal = false"
+        >
+          Cancel
+        </button>
+        <button
+          class="px-5 py-2 text-sm font-semibold bg-navy-500 hover:bg-navy-600 text-white rounded-lg transition-all flex items-center gap-2 disabled:opacity-60"
+          :disabled="loading"
+          @click="updateService"
+        >
+          <UIcon v-if="loading" name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+          Save Changes
+        </button>
+      </div>
+    </div>
   </div>
 </template>

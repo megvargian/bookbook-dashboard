@@ -20,6 +20,8 @@ export interface Customer {
   email: string
   gender?: string
   date_of_birth?: string
+  total_visits?: number
+  total_spent?: number
 }
 
 export interface Mail {
@@ -50,6 +52,7 @@ export interface Employee {
   start_working_hour?: string
   end_working_hours?: string
   working_week_days?: string | string[]
+  profile_picture?: string
 }
 
 export interface Stat {

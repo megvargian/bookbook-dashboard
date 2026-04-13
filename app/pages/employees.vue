@@ -108,15 +108,58 @@ const editEmployee = ref<{
   phone_number?: string
   start_working_hour?: string
   end_working_hours?: string
+  profile_picture?: string
 }>({
   full_name: '',
   email: '',
   phone_number: '',
   start_working_hour: '',
-  end_working_hours: ''
+  end_working_hours: '',
+  profile_picture: ''
 })
 
 const editWorkingDays = ref<string[]>([])
+const profilePicturePreview = ref('')
+const profilePictureUploading = ref(false)
+
+async function handleProfilePictureChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !editingEmployee.value) return
+
+  if (!file.type.startsWith('image/')) {
+    toast.add({ title: 'Error', description: 'Please select an image file', color: 'error' })
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    toast.add({ title: 'Error', description: 'Image must be smaller than 2MB', color: 'error' })
+    return
+  }
+
+  profilePictureUploading.value = true
+  try {
+    const ext = file.name.split('.').pop()
+    const path = `avatars/${editingEmployee.value.id}.${ext}`
+
+    const { data, error } = await supabase.storage
+      .from('profile_picture')
+      .upload(path, file, { upsert: true })
+
+    if (error) throw error
+
+    const { data: urlData } = supabase.storage
+      .from('profile_picture')
+      .getPublicUrl(data.path)
+
+    editEmployee.value.profile_picture = urlData.publicUrl
+    profilePicturePreview.value = urlData.publicUrl
+    toast.add({ title: 'Success', description: 'Profile picture uploaded', color: 'success' })
+  } catch (err: any) {
+    toast.add({ title: 'Error', description: err.message || 'Failed to upload picture', color: 'error' })
+  } finally {
+    profilePictureUploading.value = false
+  }
+}
 
 const filteredEmployees = computed(() => {
   return employees.value.filter((employee) => {
@@ -276,8 +319,10 @@ async function openEditModal(employee: Employee) {
     email: employee.email || '',
     phone_number: employee.phone_number || '',
     start_working_hour: employee.start_working_hour || '',
-    end_working_hours: employee.end_working_hours || ''
+    end_working_hours: employee.end_working_hours || '',
+    profile_picture: employee.profile_picture || ''
   }
+  profilePicturePreview.value = employee.profile_picture || ''
   editWorkingDays.value = Array.isArray(employee.working_week_days)
     ? employee.working_week_days
     : employee.working_week_days
@@ -325,7 +370,8 @@ async function updateEmployee() {
       phone_number: editEmployee.value.phone_number,
       start_working_hour: editEmployee.value.start_working_hour,
       end_working_hours: editEmployee.value.end_working_hours,
-      working_week_days: editWorkingDays.value
+      working_week_days: editWorkingDays.value,
+      profile_picture: editEmployee.value.profile_picture
     }
 
     const { error } = await supabase
@@ -351,6 +397,7 @@ async function updateEmployee() {
     editingEmployee.value = null
     editSelectedServices.value = []
     editWorkingDays.value = []
+    profilePicturePreview.value = ''
     await refreshEmployees()
   } catch (error) {
     console.error('Error updating employee:', error)
@@ -560,6 +607,29 @@ async function removeEmployee(employeeId: string) {
 
       <!-- Body -->
       <div class="flex-1 overflow-y-auto p-6 space-y-5">
+        <!-- Profile Picture (admin only) -->
+        <div class="flex flex-col items-center gap-2">
+          <div class="relative group">
+            <img
+              v-if="profilePicturePreview"
+              :src="profilePicturePreview"
+              class="w-20 h-20 rounded-full object-cover border-2 border-slate-200 dark:border-gray-700"
+            >
+            <div
+              v-else
+              class="w-20 h-20 rounded-full bg-navy-500 flex items-center justify-center text-white text-2xl font-bold"
+            >
+              {{ editEmployee.full_name?.charAt(0)?.toUpperCase() || '?' }}
+            </div>
+            <label class="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+              <UIcon v-if="profilePictureUploading" name="i-lucide-loader-2" class="w-5 h-5 text-white animate-spin" />
+              <UIcon v-else name="i-lucide-camera" class="w-5 h-5 text-white" />
+              <input type="file" class="sr-only" accept="image/*" @change="handleProfilePictureChange">
+            </label>
+          </div>
+          <p class="text-xs text-slate-400 dark:text-gray-500">Hover to change photo · max 2MB</p>
+        </div>
+
         <!-- Full Name -->
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-1.5">Full Name <span class="text-red-500">*</span></label>
