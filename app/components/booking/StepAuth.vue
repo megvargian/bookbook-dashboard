@@ -22,26 +22,48 @@ const signupForm = reactive({
 })
 const profileForm = reactive({ phone_number: '', gender: '', date_of_birth: '' })
 
-// On mount, check if the user is already authenticated (handles Google OAuth returns too)
-onMounted(async () => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
+// Use onAuthStateChange as primary handler — this correctly fires after Google OAuth
+// code exchange completes, avoiding race conditions with getSession()
+let authHandled = false
+
+onMounted(() => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session && !authHandled) {
+      authHandled = true
       await processUser(session.access_token, session.user)
-    } else {
+    } else if (event === 'INITIAL_SESSION' && !session) {
       view.value = 'login'
     }
-  } catch {
-    view.value = 'login'
-  }
+  })
+
+  onUnmounted(() => subscription.unsubscribe())
 })
 
-async function processUser(token: string, user: any) {
+async function processUser(initialToken: string, user: any) {
+  let token = initialToken
   loading.value = true
   try {
-    // Tag user with customer role if not already set
-    if (!user.user_metadata?.role) {
+    const existingRole = user.user_metadata?.role
+
+    // Block employees/admins from using the booking flow
+    if (existingRole === 'employee' || existingRole === 'admin') {
+      await supabase.auth.signOut()
+      toast.add({
+        title: 'Staff account detected',
+        description: 'Please use the staff login page instead.',
+        color: 'error'
+      })
+      view.value = 'login'
+      loading.value = false
+      return
+    }
+
+    // Always ensure booking-page sign-ins are tagged as customer
+    if (existingRole !== 'customer') {
       await supabase.auth.updateUser({ data: { role: 'customer' } })
+      // Get fresh token after updateUser — the old token may be stale
+      const { data: { session: fresh } } = await supabase.auth.getSession()
+      if (fresh) token = fresh.access_token
     }
 
     const res: any = await $fetch('/api/customer-auth', {
