@@ -95,10 +95,14 @@ async function processUser(initialToken: string, user: any) {
 async function googleSignIn() {
   loading.value = true
   try {
+    // Store current booking URL so the callback page can return here after auth
+    if (process.client) {
+      localStorage.setItem('bookingReturnUrl', window.location.href)
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: process.client ? window.location.href : undefined,
+        redirectTo: process.client ? `${window.location.origin}/auth/callback` : undefined,
         queryParams: { prompt: 'select_account' }
       }
     })

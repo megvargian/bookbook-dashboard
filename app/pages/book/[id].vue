@@ -47,7 +47,10 @@ const submitBookingLoading = ref(false)
 onMounted(async () => {
   try {
     const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user?.user_metadata?.role === 'customer') {
+    // Only auto-authenticate if they're already tagged as 'customer'.
+    // New Google users (no role yet) will be handled by StepAuth which
+    // tags them and creates the customer record.
+    if (session && session.user?.user_metadata?.role === 'customer') {
       const res: any = await $fetch('/api/customer-auth', {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}` },
