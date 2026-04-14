@@ -10,6 +10,7 @@ definePageMeta({
 const userStore = useUserStore()
 const supabase = useSupabaseClient()
 const toast = useToast()
+const { isNotificationsSlideoverOpen, notificationUnreadCount } = useDashboard()
 
 // Wait for user store to initialize
 await userStore.fetchClientProfile()
@@ -891,6 +892,22 @@ const selectMiniCalDay = (date: Date | null) => {
                 Month
               </UButton>
             </div>
+
+            <UChip
+              v-if="userStore.clientProfile?.role === 'admin'"
+              :text="notificationUnreadCount > 0 ? String(notificationUnreadCount) : undefined"
+              :show="notificationUnreadCount > 0"
+              color="error"
+              size="sm"
+              inset
+            >
+              <UButton
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-bell"
+                @click="isNotificationsSlideoverOpen = true"
+              />
+            </UChip>
           </div>
         </template>
       </UDashboardNavbar>

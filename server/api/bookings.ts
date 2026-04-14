@@ -383,6 +383,29 @@ export default eventHandler(async (event) => {
           })
         }
 
+        // Insert notification for the admin about the new booking
+        try {
+          const customerName = newBooking?.customer?.full_name || 'A customer'
+          const serviceName = newBooking?.service?.name || 'a service'
+          await supabase.from('notification').insert({
+            type: 'new_booking',
+            title: 'New Booking',
+            body: `${customerName} booked ${serviceName} on ${validatedData.booking_date}`,
+            is_read: false,
+            booking_id: newBooking.id,
+            client_profile_id: actualClientProfileId,
+            metadata: {
+              customer_name: customerName,
+              service_name: serviceName,
+              booking_date: validatedData.booking_date,
+              employee_id: validatedData.employee_id
+            }
+          })
+        } catch (notifErr) {
+          // Never fail the booking if notification insert fails
+          console.error('Failed to insert new booking notification:', notifErr)
+        }
+
         return newBooking
 
       case 'PUT':
@@ -506,6 +529,39 @@ export default eventHandler(async (event) => {
             statusCode: 500,
             statusMessage: `Failed to update booking: ${updateError.message}`
           })
+        }
+
+        // Insert notification if the status changed
+        if (validatedUpdateData.status && updatedBooking) {
+          try {
+            const customerName = updatedBooking?.customer?.full_name
+              || updatedBooking?.client_profile?.first_name
+              || 'A customer'
+            const serviceName = updatedBooking?.service?.name || 'a service'
+            const newStatus = validatedUpdateData.status
+            const statusLabels: Record<string, string> = {
+              confirmed: 'Confirmed',
+              completed: 'Completed',
+              cancelled: 'Cancelled',
+              pending: 'Pending'
+            }
+            await supabase.from('notification').insert({
+              type: 'status_update',
+              title: `Booking ${statusLabels[newStatus] || newStatus}`,
+              body: `${customerName}'s booking for ${serviceName} was marked as ${newStatus}`,
+              is_read: false,
+              booking_id: updatedBooking.id,
+              client_profile_id: updatedBooking.client_profile_id,
+              metadata: {
+                customer_name: customerName,
+                service_name: serviceName,
+                new_status: newStatus,
+                booking_date: updatedBooking.booking_date
+              }
+            })
+          } catch (notifErr) {
+            console.error('Failed to insert status update notification:', notifErr)
+          }
         }
 
         return updatedBooking

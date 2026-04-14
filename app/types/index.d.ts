@@ -72,11 +72,15 @@ export interface Sale {
 }
 
 export interface Notification {
-  id: number
-  unread?: boolean
-  sender: User
+  id: string
+  created_at: string
+  type: 'new_booking' | 'status_update'
+  title: string
   body: string
-  date: string
+  is_read: boolean
+  booking_id: string | null
+  client_profile_id: string
+  metadata: Record<string, any>
 }
 
 export type Period = 'daily' | 'weekly' | 'monthly'

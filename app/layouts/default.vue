@@ -4,7 +4,6 @@ import { useUserStore } from '~/stores/user'
 
 const toast = useToast()
 const userStore = useUserStore()
-
 const open = ref(false)
 
 // Base navigation links
