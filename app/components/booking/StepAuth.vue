@@ -1,3 +1,4 @@
+<!-- eslint-disable @typescript-eslint/no-explicit-any -->
 <script setup lang="ts">
 const emit = defineEmits<{
   (e: 'auth-complete', customerId: string): void
@@ -96,13 +97,13 @@ async function googleSignIn() {
   loading.value = true
   try {
     // Store current booking URL so the callback page can return here after auth
-    if (process.client) {
+    if (import.meta.client) {
       localStorage.setItem('bookingReturnUrl', window.location.href)
     }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: process.client ? `${window.location.origin}/auth/callback` : undefined,
+        redirectTo: import.meta.client ? `${window.location.origin}/auth/callback` : undefined,
         queryParams: { prompt: 'select_account' }
       }
     })
@@ -204,21 +205,44 @@ async function saveProfile(skip = false) {
     <!-- Checking session -->
     <div v-if="view === 'checking'" class="flex flex-col items-center gap-4 text-white">
       <svg class="w-10 h-10 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        />
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
-      <p class="text-gray-400">Checking your session…</p>
+      <p class="text-gray-400">
+        Checking your session…
+      </p>
     </div>
 
     <!-- Email verification sent -->
     <div v-else-if="view === 'verify-email'" class="max-w-sm w-full text-center">
       <div class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        <svg
+          class="w-8 h-8 text-blue-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+          />
         </svg>
       </div>
-      <h2 class="text-xl font-bold text-white mb-2">Check your email</h2>
-      <p class="text-gray-400 mb-6">We sent a confirmation link to <strong class="text-white">{{ signupForm.email }}</strong>. Click it to activate your account, then return here to book.</p>
+      <h2 class="text-xl font-bold text-white mb-2">
+        Check your email
+      </h2>
+      <p class="text-gray-400 mb-6">
+        We sent a confirmation link to <strong class="text-white">{{ signupForm.email }}</strong>. Click it to activate your account, then return here to book.
+      </p>
       <button class="text-blue-400 hover:underline text-sm" @click="view = 'signup'">
         ← Back to sign up
       </button>
@@ -226,8 +250,12 @@ async function saveProfile(skip = false) {
 
     <!-- Complete profile (after Google / missing phone) -->
     <div v-else-if="view === 'complete-profile'" class="max-w-sm w-full">
-      <h2 class="text-2xl font-bold text-white mb-1">One more step</h2>
-      <p class="text-gray-400 mb-6">Help us reach you about your appointment</p>
+      <h2 class="text-2xl font-bold text-white mb-1">
+        One more step
+      </h2>
+      <p class="text-gray-400 mb-6">
+        Help us reach you about your appointment
+      </p>
 
       <div class="space-y-4">
         <div>
@@ -242,10 +270,18 @@ async function saveProfile(skip = false) {
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-1">Gender <span class="text-gray-500 font-normal">(optional)</span></label>
           <select v-model="profileForm.gender" class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Select…</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
+            <option value="">
+              Select…
+            </option>
+            <option value="Male">
+              Male
+            </option>
+            <option value="Female">
+              Female
+            </option>
+            <option value="Other">
+              Other
+            </option>
           </select>
         </div>
         <div>
@@ -264,8 +300,20 @@ async function saveProfile(skip = false) {
           :disabled="loading"
           @click="saveProfile(false)"
         >
-          <svg v-if="loading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <svg
+            v-if="loading"
+            class="w-5 h-5 animate-spin"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
           Save & Continue
@@ -356,8 +404,20 @@ async function saveProfile(skip = false) {
           class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           :disabled="loading"
         >
-          <svg v-if="loading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <svg
+            v-if="loading"
+            class="w-5 h-5 animate-spin"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
           Sign In
@@ -413,10 +473,18 @@ async function saveProfile(skip = false) {
           <div>
             <label class="block text-sm font-medium text-gray-300 mb-1">Gender <span class="text-gray-500 font-normal">(opt.)</span></label>
             <select v-model="signupForm.gender" class="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-              <option value="">Select…</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
+              <option value="">
+                Select…
+              </option>
+              <option value="Male">
+                Male
+              </option>
+              <option value="Female">
+                Female
+              </option>
+              <option value="Other">
+                Other
+              </option>
             </select>
           </div>
           <div>
@@ -433,8 +501,20 @@ async function saveProfile(skip = false) {
           class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           :disabled="loading"
         >
-          <svg v-if="loading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <svg
+            v-if="loading"
+            class="w-5 h-5 animate-spin"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
           Create Account

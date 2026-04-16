@@ -1,11 +1,12 @@
+<!-- eslint-disable @stylistic/max-statements-per-line -->
 <script setup lang="ts">
 definePageMeta({ layout: false })
 
 const supabase = useSupabaseClient()
 const route = useRoute()
-const status = ref('Exchanging session…')
+const status = ref('Signing you in…')
 
-onMounted(async () => {
+onMounted(() => {
   const code = route.query.code as string | undefined
   const errorParam = route.query.error as string | undefined
   const storedUrl = localStorage.getItem('bookingReturnUrl')
@@ -15,45 +16,43 @@ onMounted(async () => {
   console.log('[auth/callback] code present:', !!code)
   console.log('[auth/callback] returnTo:', returnTo)
 
-  // Handle OAuth errors passed back in the URL
   if (errorParam) {
-    console.error('[auth/callback] OAuth error from provider:', route.query.error_description)
-    status.value = `OAuth error: ${route.query.error_description || errorParam}`
-    setTimeout(() => window.location.replace(returnTo), 3000)
+    status.value = `Error: ${route.query.error_description || errorParam}`
+    console.error('[auth/callback] OAuth error:', route.query.error_description)
+    setTimeout(() => { window.location.replace(returnTo) }, 3000)
     return
   }
 
   if (!code) {
-    console.warn('[auth/callback] No code in URL — redirecting immediately')
-    status.value = 'No code found, redirecting…'
+    console.warn('[auth/callback] No code — redirecting immediately')
     window.location.replace(returnTo)
     return
   }
 
-  try {
-    status.value = 'Exchanging code…'
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-
-    if (error) {
-      console.error('[auth/callback] exchangeCodeForSession error:', error.message, error)
-      status.value = `Exchange failed: ${error.message}`
-      setTimeout(() => window.location.replace(returnTo), 3000)
-      return
+  // Listen for SIGNED_IN first, THEN exchange the code.
+  // This guarantees the redirect fires from the auth event rather than
+  // racing against the async return value which can be interrupted.
+  let redirected = false
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && !redirected) {
+      redirected = true
+      subscription.unsubscribe()
+      console.log('[auth/callback] Session confirmed, redirecting to:', returnTo)
+      status.value = 'Redirecting…'
+      window.location.replace(returnTo)
     }
+  })
 
-    console.log('[auth/callback] Session exchanged OK, user:', data?.session?.user?.email)
-    status.value = 'Session ready, redirecting…'
-
-    // Small delay to ensure the session is written to storage before the next page loads
-    await new Promise(resolve => setTimeout(resolve, 300))
-  } catch (e: any) {
-    console.error('[auth/callback] Unexpected error:', e)
-    status.value = `Unexpected error: ${e?.message}`
-    setTimeout(() => window.location.replace(returnTo), 3000)
-    return
-  }
-
-  window.location.replace(returnTo)
+  // Exchange the code — this will trigger the SIGNED_IN event above
+  status.value = 'Exchanging code…'
+  supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+    if (error) {
+      subscription.unsubscribe()
+      console.error('[auth/callback] Exchange error:', error.message)
+      status.value = `Failed: ${error.message}`
+      setTimeout(() => { window.location.replace(returnTo) }, 3000)
+    }
+  })
 })
 </script>
 

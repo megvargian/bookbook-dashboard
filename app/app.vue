@@ -43,16 +43,16 @@ useHead({
   }
 })
 
-const title = 'Nuxt Dashboard Template'
-const description = 'A professional dashboard template built with Nuxt UI, featuring multiple pages, data visualization, and comprehensive management capabilities for creating powerful admin interfaces.'
+const title = 'BookBook Dashboard'
+const description = 'Manage your appointments, services, and staff with ease using the BookBook Dashboard. Our intuitive interface allows you to efficiently handle bookings, view statistics, and customize your business settings all in one place.'
 
 useSeoMeta({
   title,
   description,
   ogTitle: title,
   ogDescription: description,
-  ogImage: 'https://ui.nuxt.com/assets/templates/nuxt/dashboard-light.png',
-  twitterImage: 'https://ui.nuxt.com/assets/templates/nuxt/dashboard-light.png',
+  ogImage: 'https://dashboard.bookbook.me/bookbook-fav-icon-1.png',
+  twitterImage: 'https://dashboard.bookbook.me/bookbook-fav-icon-1.png',
   twitterCard: 'summary_large_image'
 })
 </script>

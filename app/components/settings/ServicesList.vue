@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { DropdownMenuItem } from '@nuxt/ui'
-
 const props = withDefaults(defineProps<{
   services?: any[]
 }>(), {
@@ -12,79 +10,110 @@ const emit = defineEmits<{
   editService: [service: any]
 }>()
 
-const items = (service: any): DropdownMenuItem[] => [{
-  label: 'Edit service',
-  onSelect: () => emit('editService', service)
-}, {
-  label: 'Remove service',
-  color: 'error' as const,
-  onSelect: () => emit('removeService', service.id)
-}]
+const expandedId = ref<string | null>(null)
+
+function toggleExpand(id: string) {
+  expandedId.value = expandedId.value === id ? null : id
+}
+
+function formatDuration(seconds: number) {
+  if (!seconds) return null
+  const h = Math.floor(seconds / 3600)
+  const m = Math.round((seconds % 3600) / 60)
+  if (h && m) return `${h}h ${m}m`
+  if (h) return `${h}h`
+  return `${m}m`
+}
 </script>
 
 <template>
-  <ul v-if="services?.length" role="list" class="divide-y divide-default">
-    <li
-      v-for="(service, index) in services"
-      :key="index"
-      class="flex items-center justify-between gap-3 py-3 px-4 sm:px-6"
+  <div v-if="services?.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div
+      v-for="service in services"
+      :key="service.id"
+      class="group relative bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col overflow-hidden"
     >
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-          <UIcon name="i-lucide-wrench" class="w-6 h-6 text-gray-500" />
+      <!-- Card top accent + icon -->
+      <div class="h-2 w-full bg-gradient-to-r from-navy-500 to-navy-400" />
+
+      <div class="flex-1 p-5 flex flex-col gap-3">
+        <!-- Header row: icon + price -->
+        <div class="flex items-start justify-between gap-2">
+          <div class="w-10 h-10 rounded-xl bg-navy-50 dark:bg-navy-900/30 flex items-center justify-center shrink-0">
+            <UIcon name="i-lucide-sparkles" class="w-5 h-5 text-navy-500" />
+          </div>
+          <span class="text-lg font-bold text-navy-600 dark:text-navy-300">${{ service.price }}</span>
         </div>
 
-        <div class="text-sm min-w-0 flex-1">
-          <p class="text-highlighted font-medium truncate">
+        <!-- Name -->
+        <div>
+          <h3 class="font-semibold text-slate-900 dark:text-white text-base leading-tight">
             {{ service.name }}
-          </p>
-          <p class="text-muted truncate">
-            {{ service.description || 'No description' }}
-          </p>
-          <div class="flex items-center gap-4 mt-1">
-            <p class="text-xs text-muted">
-              <span class="font-medium">${{ service.price }}</span>
-              <span v-if="service.duration_service_in_s"> • {{ Math.round(service.duration_service_in_s / 3600 * 10) / 10 }}h</span>
-            </p>
-          </div>
-        </div>
-      </div>
+          </h3>
 
-      <div class="flex items-center gap-3">
-        <div class="flex flex-col items-end gap-1">
-          <div v-if="service.categories && service.categories.length" class="flex flex-wrap gap-1">
-            <UBadge
-              v-for="category in service.categories.slice(0, 2)"
-              :key="category"
-              :label="category"
-              size="xs"
-              color="gray"
-            />
-            <UBadge
-              v-if="service.categories.length > 2"
-              :label="`+${service.categories.length - 2}`"
-              size="xs"
-              color="gray"
-            />
+          <!-- Duration chip -->
+          <div v-if="service.duration_service_in_s" class="mt-1 flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
+            <UIcon name="i-lucide-clock" class="w-3.5 h-3.5" />
+            {{ formatDuration(service.duration_service_in_s) }}
           </div>
         </div>
 
-        <UDropdownMenu :items="items(service)" :content="{ align: 'end' }">
-          <UButton
-            icon="i-lucide-ellipsis-vertical"
-            color="neutral"
-            variant="ghost"
-          />
-        </UDropdownMenu>
+        <!-- Description (collapsed / expanded) -->
+        <p
+          class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed"
+          :class="expandedId === service.id ? '' : 'line-clamp-2'"
+        >
+          {{ service.description || 'No description provided.' }}
+        </p>
+
+        <button
+          v-if="service.description && service.description.length > 80"
+          class="text-xs text-navy-500 hover:text-navy-600 self-start -mt-1"
+          @click="toggleExpand(service.id)"
+        >
+          {{ expandedId === service.id ? 'Show less' : 'Show more' }}
+        </button>
+
+        <!-- Categories -->
+        <div v-if="service.categories?.length" class="flex flex-wrap gap-1.5">
+          <span
+            v-for="cat in service.categories.slice(0, 3)"
+            :key="cat"
+            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-slate-300"
+          >
+            {{ cat }}
+          </span>
+          <span
+            v-if="service.categories.length > 3"
+            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-gray-800 text-slate-500"
+          >
+            +{{ service.categories.length - 3 }}
+          </span>
+        </div>
       </div>
-    </li>
 
-  </ul>
-
-  <div v-else class="py-8 px-4 sm:px-6 text-center">
-    <div class="flex flex-col items-center gap-2">
-      <UIcon name="i-lucide-wrench" class="w-8 h-8 text-gray-400" />
-      <p class="text-sm text-gray-500 dark:text-gray-400">No services found</p>
+      <!-- Action row -->
+      <div class="px-5 py-3 border-t border-slate-100 dark:border-gray-800 flex items-center gap-2">
+        <button
+          class="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
+          @click="emit('editService', service)"
+        >
+          <UIcon name="i-lucide-pencil" class="w-3.5 h-3.5" />
+          Edit
+        </button>
+        <button
+          class="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          @click="emit('removeService', service.id)"
+        >
+          <UIcon name="i-lucide-trash-2" class="w-3.5 h-3.5" />
+          Remove
+        </button>
+      </div>
     </div>
+  </div>
+
+  <div v-else class="py-16 text-center">
+    <UIcon name="i-lucide-sparkles" class="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+    <p class="text-sm text-slate-500 dark:text-slate-400">No services found</p>
   </div>
 </template>
