@@ -35,6 +35,14 @@ export default defineNuxtConfig({
       serviceKey: process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
     },
     postmarkApiKey: process.env.POSTMARK_API_KEY,
+    // Twilio WhatsApp
+    twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
+    twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
+    twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '+14155238886',
+    // Admin WhatsApp number (e.g. "+1234567890") — receives new-booking notifications
+    adminWhatsappPhone: process.env.ADMIN_WHATSAPP_PHONE,
+    // Secret shared with the cron job that calls /api/reminders
+    cronSecret: process.env.CRON_SECRET,
     // Public environment variables (exposed to client)
     public: {
       supabaseUrl: process.env.SUPABASE_URL,

@@ -32,7 +32,7 @@ const dayAbbr: Record<string, string> = {
 </script>
 
 <template>
-  <div v-if="employees?.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div v-if="employees?.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
     <div
       v-for="employee in employees"
       :key="employee.id"

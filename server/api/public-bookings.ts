@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @stylistic/arrow-parens */
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { sendBookingConfirmationToCustomer, sendBookingNotificationToAdmin } from '../utils/email'
+import { sendCustomerConfirmationWhatsApp, sendAdminNotificationWhatsApp } from '../utils/whatsapp'
 
 // Schema for booking creation from public booking page
 const createBookingSchema = z.object({
@@ -59,6 +62,17 @@ export default defineEventHandler(async (event) => {
       .select('client_business_id, email, first_name, last_name')
       .eq('id', client_profile_id)
       .single()
+
+    // Get admin WhatsApp number from client_business
+    let businessPhone: string | null = null
+    if (clientProfile?.client_business_id) {
+      const { data: clientBusiness } = await supabase
+        .from('client_business')
+        .select('phone_number')
+        .eq('id', clientProfile.client_business_id)
+        .single()
+      businessPhone = clientBusiness?.phone_number ?? null
+    }
 
     if (clientProfileError || !clientProfile || !clientProfile.client_business_id) {
       throw createError({
@@ -181,6 +195,18 @@ export default defineEventHandler(async (event) => {
       console.warn(`[Booking] ⚠️ Skipping admin email — no email on client_profile ${client_profile_id}`)
       console.warn(`[Booking] ClientProfile object:`, JSON.stringify(clientProfile, null, 2))
     }
+
+    // WhatsApp notifications (fire-and-forget)
+    const config = useRuntimeConfig()
+    const adminPhone = businessPhone || config.adminWhatsappPhone as string
+    Promise.allSettled([
+      sendCustomerConfirmationWhatsApp(booking),
+      sendAdminNotificationWhatsApp(booking, adminPhone)
+    ]).then(results => {
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.error('[Booking] WhatsApp #' + i + ' failed:', r.reason)
+      })
+    })
 
     if (emailPromises.length > 0) {
       console.log(`[Booking] Executing ${emailPromises.length} email notifications...`)
