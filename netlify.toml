@@ -1,7 +1,8 @@
 [build]
   command = "pnpm run build"
-  publish = ".output/public"
+  publish = ".netlify/static"
 
 [build.environment]
   NODE_VERSION = "20"
   PNPM_VERSION = "10"
+  NODE_OPTIONS = "--max-old-space-size=4096"
