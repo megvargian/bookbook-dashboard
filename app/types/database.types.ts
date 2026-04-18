@@ -1,6 +1,47 @@
 export type Database = {
   public: {
     Tables: {
+      client_business: {
+        Row: {
+          id: string
+          created_at: string
+          name: string | null
+          description: string | null
+          phone: string | null
+          email: string | null
+          address: string | null
+          logo_url: string | null
+          opening_time: string // "HH:MM" 24h format
+          closing_time: string // "HH:MM" 24h format
+          open_days: number[]  // 0=Sun, 1=Mon, ..., 6=Sat
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          name?: string | null
+          description?: string | null
+          phone?: string | null
+          email?: string | null
+          address?: string | null
+          logo_url?: string | null
+          opening_time?: string
+          closing_time?: string
+          open_days?: number[]
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          name?: string | null
+          description?: string | null
+          phone?: string | null
+          email?: string | null
+          address?: string | null
+          logo_url?: string | null
+          opening_time?: string
+          closing_time?: string
+          open_days?: number[]
+        }
+      }
       booking: {
         Row: {
           id: string

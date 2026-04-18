@@ -27,6 +27,10 @@ const baseLinks = [[{
   label: 'Security',
   icon: 'i-lucide-shield',
   to: '/settings/security'
+}, {
+  label: 'Business Hours',
+  icon: 'i-lucide-clock',
+  to: '/settings/business-hours'
 }],]
 
 // Filter navigation based on user role and type
@@ -38,6 +42,10 @@ const links = computed(() => {
 
   const filteredLinks = baseLinks.map(group =>
     group.filter((link) => {
+      if (link.label === 'Business Hours') {
+        return userStore.clientProfile?.role === 'admin' && userStore.clientProfile?.user_type === 'client'
+      }
+
       if (link.label === 'Calendar') {
         // Calendar is available for both admin clients and employees
         const hasAccess = (userStore.clientProfile?.role === 'admin' && userStore.clientProfile?.user_type === 'client') ||

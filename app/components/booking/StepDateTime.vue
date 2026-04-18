@@ -3,18 +3,39 @@ import { useBookingFlow } from '~/composables/useBookingFlow'
 
 const { bookingState, updateServiceBooking, getServiceBooking } = useBookingFlow()
 
-// Generate time slots (8 AM to 8 PM, 30-minute intervals)
+// ── Business hours ────────────────────────────────────────────────────────────
+const { data: businessHours } = await useLazyFetch('/api/public-business-hours', {
+  default: () => ({ opening_time: '09:00', closing_time: '18:00', open_days: [1, 2, 3, 4, 5] }),
+  server: false,
+  query: computed(() => ({ client_profile_id: bookingState.value.clientProfileId }))
+})
+
+// Parse "HH:MM" into { hour, minute }
+const parseTime = (t: string) => {
+  const [h, m] = t.split(':').map(Number)
+  return { hour: h, minute: m }
+}
+
+// Generate time slots based on business opening/closing times (30-min intervals)
 const timeSlots = computed(() => {
-  const slots = []
-  for (let hour = 8; hour <= 20; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      if (hour === 20 && minute > 0) break // Stop at 8:00 PM
-      const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-      slots.push(time)
-    }
+  const open = parseTime(businessHours.value?.opening_time ?? '09:00')
+  const close = parseTime(businessHours.value?.closing_time ?? '18:00')
+  const slots: string[] = []
+  let h = open.hour
+  let m = open.minute
+  while (h < close.hour || (h === close.hour && m < close.minute)) {
+    slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`)
+    m += 30
+    if (m >= 60) { h++; m = 0 }
   }
   return slots
 })
+
+// Returns true when a calendar date falls on a closed day
+const isClosedDay = (date: Date) => {
+  const openDays: number[] = businessHours.value?.open_days ?? [1, 2, 3, 4, 5]
+  return !openDays.includes(date.getDay())
+}
 
 // Track which service is currently being configured
 const activeServiceIndex = ref(0)
@@ -146,6 +167,7 @@ const daysInMonth = computed(() => {
 })
 
 const selectDate = (date: Date) => {
+  if (isClosedDay(date)) return
   selectedDate.value = date
 }
 
@@ -159,6 +181,8 @@ const isPast = (date: Date) => {
   today.setHours(0, 0, 0, 0)
   return date < today
 }
+
+const isUnavailableDay = (date: Date) => isPast(date) || isClosedDay(date)
 
 const isDateSelected = (date: Date) => {
   return selectedDate.value && date.toDateString() === selectedDate.value.toDateString()
@@ -275,16 +299,19 @@ onMounted(() => {
               <button
                 v-if="day"
                 @click="selectDate(day)"
-                :disabled="isPast(day)"
+                :disabled="isUnavailableDay(day)"
+                :title="isClosedDay(day) ? 'Closed' : undefined"
                 :class="[
                   'aspect-square calendar-day p-2 text-sm rounded-lg transition-all',
                   isDateSelected(day)
                     ? 'bg-blue-500 text-white font-bold'
-                    : isToday(day)
-                      ? 'bg-blue-500/20 text-blue-400 font-medium'
-                      : isPast(day)
-                        ? 'text-gray-600 cursor-not-allowed'
-                        : 'text-gray-300 hover:bg-gray-600'
+                    : isClosedDay(day)
+                      ? 'bg-red-900/20 text-red-700 cursor-not-allowed line-through'
+                      : isToday(day)
+                        ? 'bg-blue-500/20 text-blue-400 font-medium'
+                        : isPast(day)
+                          ? 'text-gray-600 cursor-not-allowed'
+                          : 'text-gray-300 hover:bg-gray-600'
                 ]"
               >
                 {{ day.getDate() }}
@@ -299,8 +326,12 @@ onMounted(() => {
       <div class="time-slots-section">
         <h3 class="text-lg font-semibold text-white mb-4">Available Times</h3>
 
+        <div v-if="businessHours" class="text-xs text-gray-500 mb-3">
+          Hours: {{ businessHours.opening_time }} – {{ businessHours.closing_time }}
+        </div>
+
         <div v-if="!selectedDate" class="text-center py-8 text-gray-400">
-          Please select a date first
+          Please select an available date
         </div>
 
         <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-96 overflow-y-auto">

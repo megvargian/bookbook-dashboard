@@ -161,11 +161,37 @@ const newBooking = ref<CreateBookingData>({
   notes: ''
 })
 
-// Calendar utilities
-const timeSlots = Array.from({ length: 48 }, (_, i) => {
-  const hour = Math.floor(i / 2).toString().padStart(2, '0')
-  const minute = (i % 2) * 30 === 0 ? '00' : '30'
-  return `${hour}:${minute}`
+// ── Business hours ────────────────────────────────────────────────────────
+const { data: businessHours } = await useFetch<{ opening_time: string, closing_time: string, open_days: number[] }>('/api/business-hours', {
+  default: () => ({ opening_time: '09:00', closing_time: '18:00', open_days: [1, 2, 3, 4, 5] }),
+  headers: authHeaders,
+  server: false
+})
+
+const isClosedDay = (date: Date) => {
+  const openDays: number[] = businessHours.value?.open_days ?? [1, 2, 3, 4, 5]
+  return !openDays.includes(date.getDay())
+}
+
+// Calendar utilities — time slots driven by business opening/closing time
+const timeSlots = computed(() => {
+  const raw = businessHours.value ?? { opening_time: '09:00', closing_time: '18:00' }
+  const openParts = raw.opening_time.split(':')
+  const closeParts = raw.closing_time.split(':')
+  const slots: string[] = []
+  let h = parseInt(openParts[0] ?? '9', 10)
+  let m = parseInt(openParts[1] ?? '0', 10)
+  const closeH = parseInt(closeParts[0] ?? '18', 10)
+  const closeM = parseInt(closeParts[1] ?? '0', 10)
+  while (h < closeH || (h === closeH && m < closeM)) {
+    slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`)
+    m += 30
+    if (m >= 60) {
+      h++
+      m = 0
+    }
+  }
+  return slots
 })
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -313,6 +339,8 @@ const isToday = (date: Date) => {
   const today = new Date()
   return date.toDateString() === today.toDateString()
 }
+
+
 
 const getBookingAtTime = (date: Date, time: string) => {
   const dateStr = formatDate(date)
@@ -468,6 +496,9 @@ const isBookingStartSlot = (booking: Booking, time: string) => {
 
 // Event handlers
 const handleTimeSlotClick = (date: Date, time: string) => {
+  // Block action on closed days
+  if (isClosedDay(date)) return
+
   // Check if this is the start slot of an existing booking
   const existingBooking = getBookingAtTime(date, time)
 
@@ -514,6 +545,9 @@ const handleTimeSlotClick = (date: Date, time: string) => {
 }
 
 const handleMonthDayClick = (date: Date) => {
+  // Block action on closed days
+  if (isClosedDay(date)) return
+
   const dayBookings = getBookingsForDate(date)
 
   if (dayBookings.length === 1) {
@@ -995,13 +1029,29 @@ const selectMiniCalDay = (date: Date | null) => {
                 v-for="(day, index) in currentWeekDays"
                 :key="index"
                 class="p-3 text-center border-r border-slate-200 dark:border-gray-700 last:border-r-0"
-                :class="{ 'bg-blue-100 dark:bg-blue-900': isToday(day) }"
+                :class="{
+                  'bg-blue-100 dark:bg-blue-900': isToday(day),
+                  'bg-red-50/60 dark:bg-red-950/20': isClosedDay(day)
+                }"
               >
-                <div class="text-sm font-medium text-slate-500 dark:text-gray-300">
+                <div class="text-sm font-medium" :class="isClosedDay(day) ? 'text-red-400 dark:text-red-500' : 'text-slate-500 dark:text-gray-300'">
                   {{ weekDays[day.getDay()] }}
                 </div>
-                <div class="text-lg font-semibold mt-1" :class="{ 'text-blue-500 dark:text-blue-400': isToday(day), 'text-slate-900 dark:text-white': !isToday(day) }">
+                <div
+                  class="text-lg font-semibold mt-1"
+                  :class="{
+                    'text-blue-500 dark:text-blue-400': isToday(day),
+                    'text-red-400 dark:text-red-500': isClosedDay(day) && !isToday(day),
+                    'text-slate-900 dark:text-white': !isToday(day) && !isClosedDay(day)
+                  }"
+                >
                   {{ day.getDate() }}
+                </div>
+                <div
+                  v-if="isClosedDay(day)"
+                  class="text-xs text-red-400 dark:text-red-500 mt-0.5"
+                >
+                  Closed
                 </div>
               </div>
             </div>
@@ -1019,12 +1069,13 @@ const selectMiniCalDay = (date: Date | null) => {
                   <div
                     v-for="day in currentWeekDays"
                     :key="`${day}-${time}`"
-                    class="border-r border-slate-200 dark:border-gray-700 border-b border-slate-100 dark:border-gray-800 min-h-12 p-1 cursor-pointer transition-all duration-200 relative"
+                    class="border-r border-slate-200 dark:border-gray-700 border-b border-slate-100 dark:border-gray-800 min-h-12 p-1 transition-all duration-200 relative"
                     :class="{
-                      'bg-blue-50/50 dark:bg-gray-800/20': isToday(day),
-                      'bg-white dark:bg-gray-900': !isToday(day),
+                      'bg-blue-50/50 dark:bg-gray-800/20': isToday(day) && !isClosedDay(day),
+                      'bg-red-50/30 dark:bg-red-950/10 cursor-not-allowed': isClosedDay(day),
+                      'bg-white dark:bg-gray-900 cursor-pointer': !isToday(day) && !isClosedDay(day),
                       'bg-blue-100/60 dark:bg-blue-900/30 border-blue-500/50': selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time,
-                      'hover:bg-slate-50 dark:hover:bg-gray-800/30': !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)
+                      'hover:bg-slate-50 dark:hover:bg-gray-800/30': !isClosedDay(day) && !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)
                     }"
                     @click.stop="handleTimeSlotClick(day, time)"
                   >
@@ -1143,7 +1194,8 @@ const selectMiniCalDay = (date: Date | null) => {
                   class="border-r border-slate-200 dark:border-gray-700 border-b border-slate-200 dark:border-gray-700 min-h-24 p-2 cursor-pointer transition-all duration-200 relative flex flex-col"
                   :class="{
                     'bg-slate-100/50 dark:bg-gray-800/50': !dayInfo.isCurrentMonth,
-                    'bg-white dark:bg-gray-900': dayInfo.isCurrentMonth,
+                    'bg-white dark:bg-gray-900': dayInfo.isCurrentMonth && !isClosedDay(dayInfo.date),
+                    'bg-red-50/40 dark:bg-red-950/20': dayInfo.isCurrentMonth && isClosedDay(dayInfo.date),
                     'bg-blue-50 dark:bg-blue-900/30': isToday(dayInfo.date),
                     'hover:bg-slate-50 dark:hover:bg-gray-800/30': true
                   }"
@@ -1155,12 +1207,14 @@ const selectMiniCalDay = (date: Date | null) => {
                       class="text-sm font-medium"
                       :class="{
                         'text-slate-300 dark:text-gray-500': !dayInfo.isCurrentMonth,
-                        'text-slate-700 dark:text-white': dayInfo.isCurrentMonth && !isToday(dayInfo.date),
+                        'text-slate-700 dark:text-white': dayInfo.isCurrentMonth && !isToday(dayInfo.date) && !isClosedDay(dayInfo.date),
+                        'text-red-400 dark:text-red-500': dayInfo.isCurrentMonth && isClosedDay(dayInfo.date),
                         'text-blue-500 dark:text-blue-400 font-bold': isToday(dayInfo.date)
                       }"
                     >
                       {{ dayInfo.date.getDate() }}
                     </span>
+                    <span v-if="dayInfo.isCurrentMonth && isClosedDay(dayInfo.date)" class="ml-1 text-xs text-red-400 dark:text-red-500">Closed</span>
                   </div>
 
                   <!-- Booking Indicators -->
