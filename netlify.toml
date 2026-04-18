@@ -1,17 +1,7 @@
 [build]
   command = "pnpm run build"
-  publish = ".output/public"
+  publish = ".netlify/static"
 
 [build.environment]
   NODE_VERSION = "20"
   PNPM_VERSION = "10"
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/server/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
