@@ -30,12 +30,21 @@ function getClient() {
 }
 
 function formatDate(dateStr: string) {
-  const date = new Date(dateStr + 'T00:00:00')
-  return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  // Parse as noon UTC so the date never shifts regardless of server timezone
+  const datePart = (dateStr ?? '').split('T')[0]
+  return new Date(datePart + 'T12:00:00Z').toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'
+  })
 }
 
 function formatTime(isoStr: string) {
-  return new Date(isoStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+  // Read UTC time directly since times are stored as UTC wall-clock time
+  const d = new Date(isoStr)
+  const h = d.getUTCHours()
+  const m = d.getUTCMinutes().toString().padStart(2, '0')
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${h12}:${m} ${ampm}`
 }
 
 function formatPrice(price: number) {
@@ -119,7 +128,7 @@ export async function sendBookingConfirmationToCustomer(booking: any) {
                 ${employee
                   ? `<tr>
                   <td style="padding:6px 0;color:#71717a;font-size:14px;">Staff</td>
-                  <td style="padding:6px 0;color:#18181b;font-size:14px;font-weight:600;">${employee.first_name} ${employee.last_name}</td>
+                  <td style="padding:6px 0;color:#18181b;font-size:14px;font-weight:600;">${employee.full_name || `${employee.first_name ?? ''} ${employee.last_name ?? ''}`.trim()}</td>
                 </tr>`
                   : ''}
                 <tr>
@@ -129,7 +138,7 @@ export async function sendBookingConfirmationToCustomer(booking: any) {
                 <tr>
                   <td style="padding:6px 0;color:#71717a;font-size:14px;">Status</td>
                   <td style="padding:6px 0;">
-                    <span style="background:#fef9c3;color:#854d0e;font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px;">Pending</span>
+                    <span style="background:#dcfce7;color:#166534;font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px;">Confirmed</span>
                   </td>
                 </tr>
                 ${booking.notes
@@ -280,7 +289,7 @@ export async function sendBookingNotificationToAdmin(booking: any, adminEmail: s
                 ${employee
                   ? `<tr>
                   <td style="padding:5px 0;color:#71717a;font-size:14px;">Staff</td>
-                  <td style="padding:5px 0;color:#18181b;font-size:14px;font-weight:600;">${employee.first_name} ${employee.last_name}</td>
+                  <td style="padding:5px 0;color:#18181b;font-size:14px;font-weight:600;">${employee.full_name || `${employee.first_name ?? ''} ${employee.last_name ?? ''}`.trim()}</td>
                 </tr>`
                   : ''}
                 <tr>

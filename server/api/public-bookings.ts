@@ -109,8 +109,8 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Convert start_time (HH:MM) to full timestamp
-    const startDateTime = new Date(`${booking_date}T${start_time}:00`)
+    // Convert start_time (HH:MM) to full UTC timestamp (append Z so it's stored as wall-clock UTC)
+    const startDateTime = new Date(`${booking_date}T${start_time}:00Z`)
     const endDateTime = new Date(startDateTime.getTime() + (service.duration_service_in_s * 1000))
 
     // Format as ISO strings for database
@@ -152,7 +152,7 @@ export default defineEventHandler(async (event) => {
         booking_date,
         start_time: startTimeISO,
         end_time: endTimeISO,
-        status: 'pending',
+        status: 'confirmed',
         total_price: service.price,
         notes: notes || null
       })

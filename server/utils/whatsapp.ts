@@ -19,7 +19,7 @@ function waNumber(phone: string) {
 
 async function send(to: string, body: string) {
   const config = useRuntimeConfig()
-  const from = `whatsapp:${config.twilioWhatsappFrom || '+14155238886'}`
+  const from = `whatsapp:${config.twilioWhatsappFrom || '+15559113759'}`
   const client = getTwilioClient()
   await client.messages.create({ from, to: waNumber(to), body })
 }
@@ -27,15 +27,21 @@ async function send(to: string, body: string) {
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
 function fmtDate(dateStr: string) {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+  // Parse as noon UTC so the date never shifts regardless of server timezone
+  const datePart = (dateStr ?? '').split('T')[0]
+  return new Date(datePart + 'T12:00:00Z').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC'
   })
 }
 
 function fmtTime(isoStr: string) {
-  return new Date(isoStr).toLocaleTimeString('en-US', {
-    hour: '2-digit', minute: '2-digit', hour12: true
-  })
+  // Read UTC time directly since times are stored as UTC wall-clock time
+  const d = new Date(isoStr)
+  const h = d.getUTCHours()
+  const m = d.getUTCMinutes().toString().padStart(2, '0')
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${h12}:${m} ${ampm}`
 }
 
 // ─── Public helpers ───────────────────────────────────────────────────────────
@@ -52,22 +58,43 @@ export async function sendCustomerConfirmationWhatsApp(booking: any) {
       return
     }
 
-    const body = [
-      `Hello ${booking.customer.full_name}! 🎉`,
-      '',
-      `Your booking is confirmed:`,
-      '',
-      `📋 Service: ${booking.service?.name ?? 'N/A'}`,
-      `👤 Staff: ${booking.employee?.full_name ?? 'N/A'}`,
-      `📅 Date: ${fmtDate(booking.booking_date)}`,
-      `🕐 Time: ${fmtTime(booking.start_time)}`,
-      `💰 Price: $${booking.total_price}`,
-      booking.notes ? `📝 Notes: ${booking.notes}` : null,
-      '',
-      `See you soon! — Bookbook`
-    ].filter(l => l !== null).join('\n')
+    const config = useRuntimeConfig()
+    const templateSid = config.twilioAppointmentTemplateSid as string | undefined
+    const from = `whatsapp:${config.twilioWhatsappFrom || '+15559113759'}`
+    const client = getTwilioClient()
 
-    await send(phone, body)
+    if (templateSid) {
+      // Use pre-approved appointment confirmation template
+      await client.messages.create({
+        from,
+        to: waNumber(phone),
+        contentSid: templateSid,
+        contentVariables: JSON.stringify({
+          first_name: booking.customer.full_name?.split(' ')[0] ?? booking.customer.full_name ?? 'there',
+          date: fmtDate(booking.booking_date),
+          time: fmtTime(booking.start_time)
+        })
+      })
+    } else {
+      // Fallback: free-form (only works within 24h session window)
+      const body = [
+        `Hello ${booking.customer.full_name}! 🎉`,
+        '',
+        `Your booking is confirmed:`,
+        '',
+        `📋 Service: ${booking.service?.name ?? 'N/A'}`,
+        `👤 Staff: ${booking.employee?.full_name ?? 'N/A'}`,
+        `📅 Date: ${fmtDate(booking.booking_date)}`,
+        `🕐 Time: ${fmtTime(booking.start_time)}`,
+        `💰 Price: $${booking.total_price}`,
+        booking.notes ? `📝 Notes: ${booking.notes}` : null,
+        '',
+        `See you soon! — Bookbook`
+      ].filter(l => l !== null).join('\n')
+
+      await client.messages.create({ from, to: waNumber(phone), body })
+    }
+
     console.log('[WhatsApp] ✅ Customer confirmation sent to', phone)
   } catch (err: any) {
     console.error('[WhatsApp] ❌ Failed to send customer confirmation:', err?.message)

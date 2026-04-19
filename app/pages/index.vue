@@ -206,24 +206,25 @@ const currentWeekStart = computed(() => {
 
 // Utility functions defined early to avoid initialization issues
 const formatDate = (date: Date) => {
-  return date.toISOString().split('T')[0]
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 const formatTime = (date: Date) => {
-  // Use UTC to avoid timezone conversion
+  // Always use UTC since times are stored as UTC wall-clock time
   const hours = date.getUTCHours().toString().padStart(2, '0')
   const minutes = date.getUTCMinutes().toString().padStart(2, '0')
   return `${hours}:${minutes}`
 }
 
-// Extract time from timestamp string
+// Extract time from timestamp string - always use UTC slice since stored as UTC wall-clock
 const extractTimeFromTimestamp = (timestamp: string) => {
   if (!timestamp) return ''
   if (timestamp.includes('T')) {
-    // It's an ISO timestamp - extract time directly to avoid timezone conversion
-    return timestamp.slice(11, 16) // Extract HH:MM from ISO string
+    return timestamp.slice(11, 16) // Extract HH:MM UTC = wall-clock time
   }
-  // It's already a time string
   return timestamp
 }
 
@@ -369,20 +370,10 @@ const getBookingAtTime = (date: Date, time: string) => {
 
     if (booking.start_time) {
       if (booking.start_time.includes('T')) {
-        // It's a timestamptz from database like "2026-01-02T10:30:00.000Z"
-        // Extract time directly from ISO string to avoid timezone conversion
-        extractedTime = booking.start_time.slice(11, 16) // Get HH:MM from ISO string
-      } else if (booking.start_time.match(/^\d{2}:\d{2}$/)) {
-        // Legacy: It's already in HH:MM format (shouldn't happen with timestamptz)
-        extractedTime = booking.start_time
+        // UTC wall-clock time — read UTC digits directly
+        extractedTime = booking.start_time.slice(11, 16)
       } else {
-        // Handle any unexpected formats
         console.warn(`⚠️ Unexpected start_time format for booking ${booking.id}: ${booking.start_time}`)
-        // Try to extract from booking_date as fallback
-        if (booking.booking_date && booking.booking_date.includes('T')) {
-          const dateTime = new Date(booking.booking_date)
-          extractedTime = dateTime.toTimeString().slice(0, 5)
-        }
       }
     }
 
@@ -425,7 +416,8 @@ const getPreviewBookingAtTime = (date: Date, time: string) => {
 }
 const getBookingsOverlappingTime = (date: Date, time: string) => {
   const dateStr = formatDate(date)
-  const slotTime = new Date(`${dateStr}T${time}:00`)
+  // Use UTC (append Z) so slot time matches the UTC wall-clock times stored in DB
+  const slotTime = new Date(`${dateStr}T${time}:00Z`)
 
   return bookings.value?.filter((booking) => {
     // Extract date from booking_date timestamp
@@ -444,12 +436,12 @@ const getBookingsOverlappingTime = (date: Date, time: string) => {
     let startTime, endTime
 
     try {
-      // start_time should always be a timestamp now
+      // start_time is always stored as UTC wall-clock time
       if (booking.start_time.includes('T')) {
         startTime = new Date(booking.start_time)
       } else {
-        // Legacy fallback - combine with booking date
-        startTime = new Date(`${bookingDate}T${booking.start_time}:00`)
+        // Legacy fallback
+        startTime = new Date(`${bookingDate}T${booking.start_time}:00Z`)
       }
 
       // end_time should always be a timestamp now
@@ -1114,7 +1106,7 @@ const selectMiniCalDay = (date: Date | null) => {
                           </span>
                         </div>
                         <div v-if="getBookingAtTime(day, time)!.employee" class="text-white/80 text-xs truncate">
-                          {{ getBookingAtTime(day, time)!.employee?.first_name }} {{ getBookingAtTime(day, time)!.employee?.last_name }}
+                          {{ getBookingAtTime(day, time)!.employee?.full_name }}
                         </div>
 
                         <!-- Status Badge -->
@@ -1228,7 +1220,7 @@ const selectMiniCalDay = (date: Date | null) => {
                     >
                       <div class="font-medium truncate">
                         {{ extractTimeFromTimestamp(booking.start_time) }}
-                        {{ booking.client_profile?.first_name || booking.customer?.full_name || 'Customer' }}
+                        {{ booking.client_profile?.first_name || 'Customer' }}
                       </div>
                     </div>
 

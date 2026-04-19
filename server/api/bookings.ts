@@ -361,7 +361,7 @@ export default eventHandler(async (event) => {
           start_time: startTime.toISOString(), // Full timestamp
           end_time: endTime.toISOString(), // Full timestamp
           total_price: service.price,
-          status: 'pending' as const,
+          status: 'confirmed' as const,
           notes: validatedData.notes
         }
 
