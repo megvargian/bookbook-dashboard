@@ -38,7 +38,8 @@ export default defineNuxtConfig({
     twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
     twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
     twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '+15559113759',
-    twilioAppointmentTemplateSid: process.env.TWILIO_APPOINTMENT_TEMPLATE_SID,
+    twilioBookingConfirmationSid: process.env.TWILIO_BOOKING_CONFIRMATION_SID,
+    twilioBookingCancelledSid: process.env.TWILIO_BOOKING_CANCELLED_SID,
     // Admin WhatsApp number (e.g. "+1234567890") — receives new-booking notifications
     adminWhatsappPhone: process.env.ADMIN_WHATSAPP_PHONE,
     // Secret shared with the cron job that calls /api/reminders

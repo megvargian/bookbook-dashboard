@@ -47,10 +47,11 @@ function fmtTime(isoStr: string) {
 // ─── Public helpers ───────────────────────────────────────────────────────────
 
 /**
- * Sends a booking confirmation to the customer.
+ * Sends a booking confirmation to the customer using the approved template.
+ * Template: "Hello {{1}}, Your booking at {{2}} is confirmed. Date: {{3}} Time: {{4}} If you need to change your appointment, send a message to {{5}} and confirm"
  * Safe to fire-and-forget — logs errors but never throws.
  */
-export async function sendCustomerConfirmationWhatsApp(booking: any) {
+export async function sendCustomerConfirmationWhatsApp(booking: any, businessName?: string, contactInfo?: string) {
   try {
     const phone = booking.customer?.phone_number
     if (!phone) {
@@ -59,45 +60,85 @@ export async function sendCustomerConfirmationWhatsApp(booking: any) {
     }
 
     const config = useRuntimeConfig()
-    const templateSid = config.twilioAppointmentTemplateSid as string | undefined
+    const templateSid = config.twilioBookingConfirmationSid as string | undefined
     const from = `whatsapp:${config.twilioWhatsappFrom || '+15559113759'}`
     const client = getTwilioClient()
 
     if (templateSid) {
-      // Use pre-approved appointment confirmation template
       await client.messages.create({
         from,
         to: waNumber(phone),
         contentSid: templateSid,
         contentVariables: JSON.stringify({
-          first_name: booking.customer.full_name?.split(' ')[0] ?? booking.customer.full_name ?? 'there',
-          date: fmtDate(booking.booking_date),
-          time: fmtTime(booking.start_time)
+          1: booking.customer.full_name?.split(' ')[0] ?? 'there',
+          2: businessName ?? 'Bookbook',
+          3: fmtDate(booking.booking_date),
+          4: fmtTime(booking.start_time),
+          5: contactInfo ?? (config.adminWhatsappPhone as string) ?? 'us'
         })
       })
     } else {
       // Fallback: free-form (only works within 24h session window)
-      const body = [
+      await send(phone, [
         `Hello ${booking.customer.full_name}! 🎉`,
         '',
         `Your booking is confirmed:`,
-        '',
         `📋 Service: ${booking.service?.name ?? 'N/A'}`,
-        `👤 Staff: ${booking.employee?.full_name ?? 'N/A'}`,
         `📅 Date: ${fmtDate(booking.booking_date)}`,
         `🕐 Time: ${fmtTime(booking.start_time)}`,
-        `💰 Price: $${booking.total_price}`,
-        booking.notes ? `📝 Notes: ${booking.notes}` : null,
-        '',
         `See you soon! — Bookbook`
-      ].filter(l => l !== null).join('\n')
-
-      await client.messages.create({ from, to: waNumber(phone), body })
+      ].join('\n'))
     }
 
     console.log('[WhatsApp] ✅ Customer confirmation sent to', phone)
   } catch (err: any) {
     console.error('[WhatsApp] ❌ Failed to send customer confirmation:', err?.message)
+  }
+}
+
+/**
+ * Sends a booking cancellation notice to the customer using the approved template.
+ * Template: "Hello {{1}}, Your booking at {{2}} scheduled for {{3}} at {{4}} has been cancelled. If this was unexpected, please contact {{5}} for confirmation."
+ * Safe to fire-and-forget — logs errors but never throws.
+ */
+export async function sendBookingCancellationWhatsApp(booking: any, businessName?: string, contactInfo?: string) {
+  try {
+    const phone = booking.customer?.phone_number
+    if (!phone) {
+      console.warn('[WhatsApp] Skipping cancellation notice — no phone on customer', booking.id)
+      return
+    }
+
+    const config = useRuntimeConfig()
+    const templateSid = config.twilioBookingCancelledSid as string | undefined
+    const from = `whatsapp:${config.twilioWhatsappFrom || '+15559113759'}`
+    const client = getTwilioClient()
+
+    if (templateSid) {
+      await client.messages.create({
+        from,
+        to: waNumber(phone),
+        contentSid: templateSid,
+        contentVariables: JSON.stringify({
+          1: booking.customer.full_name?.split(' ')[0] ?? 'there',
+          2: businessName ?? 'Bookbook',
+          3: fmtDate(booking.booking_date),
+          4: fmtTime(booking.start_time),
+          5: contactInfo ?? (config.adminWhatsappPhone as string) ?? 'us'
+        })
+      })
+    } else {
+      await send(phone, [
+        `Hello ${booking.customer.full_name},`,
+        '',
+        `Your booking on ${fmtDate(booking.booking_date)} at ${fmtTime(booking.start_time)} has been cancelled.`,
+        `Please contact us if this was unexpected. — Bookbook`
+      ].join('\n'))
+    }
+
+    console.log('[WhatsApp] ✅ Cancellation notice sent to', phone)
+  } catch (err: any) {
+    console.error('[WhatsApp] ❌ Failed to send cancellation notice:', err?.message)
   }
 }
 

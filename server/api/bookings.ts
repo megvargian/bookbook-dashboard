@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
+import { sendBookingCancellationWhatsApp } from '../utils/whatsapp'
 
 // Helper function to parse cookies
 function parseCookies(cookieHeader: string) {
@@ -519,6 +520,7 @@ export default eventHandler(async (event) => {
           .select(`
             *,
             client_profile(*),
+            customer(*),
             employee(*),
             service(*)
           `)
@@ -561,6 +563,13 @@ export default eventHandler(async (event) => {
             })
           } catch (notifErr) {
             console.error('Failed to insert status update notification:', notifErr)
+          }
+
+          // Send WhatsApp cancellation notice to customer
+          if (validatedUpdateData.status === 'cancelled' && updatedBooking.customer?.phone_number) {
+            sendBookingCancellationWhatsApp(updatedBooking).catch((err: any) =>
+              console.error('[WhatsApp] Cancellation notice failed:', err?.message)
+            )
           }
         }
 

@@ -63,15 +63,17 @@ export default defineEventHandler(async (event) => {
       .eq('id', client_profile_id)
       .single()
 
-    // Get admin WhatsApp number from client_business
+    // Get admin WhatsApp number and business name from client_business
     let businessPhone: string | null = null
+    let businessName: string | null = null
     if (clientProfile?.client_business_id) {
       const { data: clientBusiness } = await supabase
         .from('client_business')
-        .select('phone_number')
+        .select('phone_number, name')
         .eq('id', clientProfile.client_business_id)
         .single()
       businessPhone = clientBusiness?.phone_number ?? null
+      businessName = clientBusiness?.name ?? null
     }
 
     if (clientProfileError || !clientProfile || !clientProfile.client_business_id) {
@@ -200,7 +202,7 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig()
     const adminPhone = businessPhone || config.adminWhatsappPhone as string
     Promise.allSettled([
-      sendCustomerConfirmationWhatsApp(booking),
+      sendCustomerConfirmationWhatsApp(booking, businessName ?? undefined, adminPhone),
       sendAdminNotificationWhatsApp(booking, adminPhone)
     ]).then(results => {
       results.forEach((r, i) => {
