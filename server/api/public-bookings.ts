@@ -198,17 +198,9 @@ export default defineEventHandler(async (event) => {
       console.warn(`[Booking] ClientProfile object:`, JSON.stringify(clientProfile, null, 2))
     }
 
-    // WhatsApp notifications (fire-and-forget)
-    const config = useRuntimeConfig()
+    // WhatsApp notifications (awaited — fire-and-forget is killed by serverless before completion)
     const adminPhone = businessPhone || config.adminWhatsappPhone as string
-    Promise.allSettled([
-      sendCustomerConfirmationWhatsApp(booking, businessName ?? undefined, adminPhone),
-      // sendAdminNotificationWhatsApp(booking, adminPhone)
-    ]).then(results => {
-      results.forEach((r, i) => {
-        if (r.status === 'rejected') console.error('[Booking] WhatsApp #' + i + ' failed:', r.reason)
-      })
-    })
+    await sendCustomerConfirmationWhatsApp(booking, businessName ?? undefined, adminPhone)
 
     if (emailPromises.length > 0) {
       console.log(`[Booking] Executing ${emailPromises.length} email notifications...`)
