@@ -31,7 +31,7 @@ const timeSlots = computed(() => {
   return slots
 })
 
-// ── Service / active state ──────────────────────────────────────────────────
+// ── Service / active state ──────────────────────────────────────────────
 const activeServiceIndex = ref(0)
 const activeService = computed(() => bookingState.value.serviceBookings[activeServiceIndex.value])
 
@@ -47,73 +47,16 @@ const getServiceDetails = (serviceId: string) => {
   return (services.value as any[])?.find((s: any) => s.id === serviceId)
 }
 
-// ── Employees capable of the active service ──────────────────────────────
-const { data: capableEmployeesData } = await useLazyFetch('/api/available-employees', {
-  default: () => ({ employees: [] }),
-  server: false,
-  query: computed(() => ({ service_ids: activeService.value?.serviceId ?? '' })),
-  watch: [computed(() => activeService.value?.serviceId)]
-})
-const capableEmployees = computed(() => (capableEmployeesData.value as any)?.employees ?? [])
-
-// ── Existing bookings for selected date ───────────────────────────────────
-const { data: existingBookings } = await useLazyFetch('/api/public-bookings-check', {
-  default: () => [],
-  server: false,
-  query: computed(() => ({ date: selectedDate.value ? formatDate(selectedDate.value) : null })),
-  watch: [selectedDate]
-})
-
 const formatDate = (date: Date) => {
   const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const mo = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+  return `${y}-${mo}-${d}`
 }
 
-// ── Per-slot availability: is at least one capable employee free? ──────────────
-const isTimeSlotAvailable = (time: string, serviceId: string): boolean => {
-  if (!selectedDate.value) return true
-
-  const employees = capableEmployees.value
-  if (!employees.length) return false
-
-  const serviceDetails = getServiceDetails(serviceId)
-  const durationMinutes = serviceDetails?.duration_service_in_s
-    ? Math.ceil(serviceDetails.duration_service_in_s / 60)
-    : 60
-
-  const timeParts = time.split(':')
-  const slotStart = parseInt(timeParts[0] ?? '0', 10) * 60 + parseInt(timeParts[1] ?? '0', 10)
-  const slotEnd = slotStart + durationMinutes
-
-  const bookings = (existingBookings.value as any[])
-
-  // At least one capable employee must have no overlapping booking
-  return employees.some((emp: any) => {
-    const empBookings = bookings.filter((b: any) => b.employee_id === emp.id)
-    return !empBookings.some((b: any) => {
-      const startRaw: string = b.start_time.includes('T') ? b.start_time.slice(11, 16) : b.start_time.slice(0, 5)
-      const endRaw: string = b.end_time.includes('T') ? b.end_time.slice(11, 16) : b.end_time.slice(0, 5)
-      const sParts = startRaw.split(':')
-      const eParts = endRaw.split(':')
-      const bStart = parseInt(sParts[0] ?? '0', 10) * 60 + parseInt(sParts[1] ?? '0', 10)
-      const bEnd = parseInt(eParts[0] ?? '0', 10) * 60 + parseInt(eParts[1] ?? '0', 10)
-      return slotStart < bEnd && slotEnd > bStart
-    })
-  })
-}
-
-const slotUnavailabilityReason = (time: string, serviceId: string): string | null => {
-  if (!selectedDate.value) return null
-  if (!capableEmployees.value.length) return 'No employees available for this service'
-  if (!isTimeSlotAvailable(time, serviceId)) return 'No employees available – choose a different time'
-  return null
-}
-
+// ── Time slot selection (no restrictions — employee availability checked in next step) ──
 const selectTimeSlot = (time: string) => {
   if (!selectedDate.value || !activeService.value) return
-  if (!isTimeSlotAvailable(time, activeService.value.serviceId)) return
   updateServiceBooking(activeService.value.serviceId, {
     date: formatDate(selectedDate.value),
     time
@@ -125,14 +68,14 @@ const isSelected = (time: string) => {
   return activeService.value.time === time && activeService.value.date === formatDate(selectedDate.value)
 }
 
-// ── Service navigation ───────────────────────────────────────────────────
+// ── Service navigation ──────────────────────────────────────────────────
 const goToService = (index: number) => {
   if (index >= 0 && index < bookingState.value.serviceBookings.length) {
     activeServiceIndex.value = index
-    const serviceBooking = bookingState.value.serviceBookings[index]
-    if (serviceBooking?.date) {
-      selectedDate.value = new Date(serviceBooking.date)
-      currentMonth.value = new Date(serviceBooking.date)
+    const sb = bookingState.value.serviceBookings[index]
+    if (sb?.date) {
+      selectedDate.value = new Date(sb.date)
+      currentMonth.value = new Date(sb.date)
     } else {
       selectedDate.value = null
       currentMonth.value = new Date()
@@ -140,7 +83,7 @@ const goToService = (index: number) => {
   }
 }
 
-// ── Calendar helpers ─────────────────────────────────────────────────────
+// ── Calendar helpers ────────────────────────────────────────────────────
 const daysInMonth = computed(() => {
   const year = currentMonth.value.getFullYear()
   const month = currentMonth.value.getMonth()
@@ -154,6 +97,10 @@ const daysInMonth = computed(() => {
 
 const selectDate = (date: Date) => {
   if (isPast(date)) return
+  // Clear time if date changes
+  if (selectedDate.value && formatDate(selectedDate.value) !== formatDate(date)) {
+    if (activeService.value) updateServiceBooking(activeService.value.serviceId, { time: '' })
+  }
   selectedDate.value = date
 }
 
@@ -165,8 +112,7 @@ const isPast = (date: Date) => {
   return date < today
 }
 
-const isDateSelected = (date: Date) =>
-  selectedDate.value?.toDateString() === date.toDateString()
+const isDateSelected = (date: Date) => selectedDate.value?.toDateString() === date.toDateString()
 
 const navigateMonth = (direction: number) => {
   const d = new Date(currentMonth.value)
@@ -306,34 +252,19 @@ onMounted(() => {
           Please select a date
         </div>
 
-        <div v-else-if="capableEmployees.length === 0" class="text-center py-8">
-          <p class="text-red-400 text-sm">No employees are available for this service.</p>
-          <p class="text-gray-500 text-xs mt-1">Please contact us directly to book.</p>
-        </div>
-
         <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-96 overflow-y-auto">
           <button
             v-for="time in timeSlots"
             :key="time"
             @click="selectTimeSlot(time)"
-            :disabled="!isTimeSlotAvailable(time, activeService.serviceId)"
-            :title="slotUnavailabilityReason(time, activeService.serviceId) ?? undefined"
             :class="[
               'px-3 py-2 text-sm rounded-lg transition-all',
               isSelected(time)
                 ? 'bg-blue-500 text-white font-semibold'
-                : isTimeSlotAvailable(time, activeService.serviceId)
-                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             ]"
           >
             {{ time }}
-            <span
-              v-if="!isTimeSlotAvailable(time, activeService.serviceId)"
-              class="block text-xs text-red-500 leading-tight mt-0.5"
-            >
-              No staff free
-            </span>
           </button>
         </div>
       </div>

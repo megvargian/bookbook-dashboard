@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useBookingFlow } from '~/composables/useBookingFlow'
 
-const { bookingState, updateServiceBooking, getServiceBooking } = useBookingFlow()
+const { bookingState, updateServiceBooking, getServiceBooking, prevStep } = useBookingFlow()
 
 // Track which service is currently being configured
 const activeServiceIndex = ref(0)
@@ -71,21 +71,19 @@ const isServiceConfigured = (serviceBooking: any) => {
 const skipSelection = () => {
   if (!availableEmployees.value || availableEmployees.value.length === 0) return
 
-  // For current service, randomly select an employee
   const randomEmployee = availableEmployees.value[Math.floor(Math.random() * availableEmployees.value.length)]
-  selectEmployee(randomEmployee.id, `${randomEmployee.first_name} ${randomEmployee.last_name}`)
+  selectEmployee(randomEmployee.id, randomEmployee.full_name || `${randomEmployee.first_name || ''} ${randomEmployee.last_name || ''}`.trim())
 }
 
 // Skip all unselected services
 const skipAllUnselected = () => {
   bookingState.value.serviceBookings.forEach((service, index) => {
     if (!service.employeeId && service.date && service.time) {
-      // Temporarily switch to this service to get its available employees
       activeServiceIndex.value = index
       nextTick(() => {
         if (availableEmployees.value && availableEmployees.value.length > 0) {
           const randomEmployee = availableEmployees.value[Math.floor(Math.random() * availableEmployees.value.length)]
-          selectEmployee(randomEmployee.id, `${randomEmployee.first_name} ${randomEmployee.last_name}`)
+          selectEmployee(randomEmployee.id, randomEmployee.full_name || `${randomEmployee.first_name || ''} ${randomEmployee.last_name || ''}`.trim())
         }
       })
     }
@@ -191,7 +189,11 @@ watchEffect(() => {
 
     <!-- Employee Selection -->
     <div v-else-if="activeService">
-      <div v-if="!availableEmployees || availableEmployees.length === 0" class="text-center py-8">
+      <div v-if="pending" class="text-center py-8 text-gray-400">
+        <p>Checking availability...</p>
+      </div>
+
+      <div v-else-if="!availableEmployees || availableEmployees.length === 0" class="text-center py-12">
         <div class="mb-4">
           <svg
             class="w-16 h-16 mx-auto text-gray-500"
@@ -207,16 +209,19 @@ watchEffect(() => {
             />
           </svg>
         </div>
-        <p class="text-gray-400 text-lg mb-2">
+        <p class="text-white text-lg font-semibold mb-2">
           No employees available
         </p>
-        <p class="text-gray-500 text-sm">
-          {{ availableEmployeesResponse?.message
-            || `No employees are available to provide "${activeService.serviceName}" on ${activeService.date} at ${activeService.time}.` }}
+        <p class="text-gray-400 text-sm mb-4">
+          There are no employees available to serve you at this time and date.<br>
+          Please go back and choose a different date or time.
         </p>
-        <p class="text-gray-500 text-sm mt-2">
-          Please go back and select a different date or time.
-        </p>
+        <button
+          class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+          @click="prevStep"
+        >
+          ← Go Back & Change Date
+        </button>
       </div>
 
       <div v-else>
@@ -250,7 +255,7 @@ watchEffect(() => {
             :class="isEmployeeSelected(employee.id)
               ? 'border-blue-500 bg-blue-500/10'
               : 'border-gray-700 bg-gray-800 hover:border-gray-600'"
-            @click="selectEmployee(employee.id, `${employee.first_name} ${employee.last_name}`)"
+            @click="selectEmployee(employee.id, employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim())"
           >
             <div class="flex flex-col items-center text-center">
               <img
@@ -260,10 +265,10 @@ watchEffect(() => {
                 class="w-20 h-20 rounded-full object-cover mb-4"
               >
               <div v-else class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold mb-4">
-                {{ employee.first_name?.charAt(0) }}{{ employee.last_name?.charAt(0) }}
+                {{ (employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`).trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() }}
               </div>
               <h3 class="text-lg font-semibold text-white mb-1">
-                {{ employee.first_name }} {{ employee.last_name }}
+                {{ employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() }}
               </h3>
               <p v-if="employee.email" class="text-gray-400 text-sm mb-2">
                 {{ employee.email }}

@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { sendBookingConfirmationToCustomer, sendBookingNotificationToAdmin } from '../utils/email'
-import { sendCustomerConfirmationWhatsApp, sendAdminNotificationWhatsApp } from '../utils/whatsapp'
+import { sendCustomerConfirmationWhatsApp } from '../utils/whatsapp'
 
 // Schema for booking creation from public booking page
 const createBookingSchema = z.object({
@@ -203,7 +203,7 @@ export default defineEventHandler(async (event) => {
     const adminPhone = businessPhone || config.adminWhatsappPhone as string
     Promise.allSettled([
       sendCustomerConfirmationWhatsApp(booking, businessName ?? undefined, adminPhone),
-      sendAdminNotificationWhatsApp(booking, adminPhone)
+      // sendAdminNotificationWhatsApp(booking, adminPhone)
     ]).then(results => {
       results.forEach((r, i) => {
         if (r.status === 'rejected') console.error('[Booking] WhatsApp #' + i + ' failed:', r.reason)

@@ -170,32 +170,74 @@ const startNewBooking = () => {
 
     <!-- Success Page -->
     <div v-if="showSuccess" class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-12 text-center">
-        <div class="inline-flex items-center justify-center w-20 h-20 bg-green-500/20 rounded-full mb-6">
-          <svg class="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-          </svg>
+      <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-10">
+        <!-- Check icon + title -->
+        <div class="flex flex-col items-center text-center mb-8">
+          <div class="inline-flex items-center justify-center w-20 h-20 bg-green-500/20 rounded-full mb-5">
+            <svg class="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 class="text-3xl font-bold text-white mb-2">
+            Booking Confirmed!
+          </h2>
+          <p class="text-gray-400">
+            Your appointment has been successfully scheduled. You will receive a confirmation shortly.
+          </p>
         </div>
 
-        <h2 class="text-3xl font-bold text-white mb-4">Booking Confirmed!</h2>
-        <p class="text-gray-300 text-lg mb-8">
-          Your appointment has been successfully scheduled. You will receive a confirmation email shortly.
-        </p>
-
-        <div class="space-y-4">
-          <button
-            @click="startNewBooking"
-            class="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
+        <!-- Booking details -->
+        <div class="space-y-4 mb-8">
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            Appointment Summary
+          </h3>
+          <div
+            v-for="(sb, index) in bookingState.serviceBookings"
+            :key="sb.serviceId"
+            class="bg-gray-700/50 rounded-xl p-5 border border-gray-600"
           >
-            Book Another Appointment
-          </button>
-          <a
-            href="/"
-            class="block w-full px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors"
-          >
-            Return to Home
-          </a>
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-500/20 text-primary-400 text-sm font-bold shrink-0">
+                  {{ index + 1 }}
+                </div>
+                <div>
+                  <p class="text-white font-semibold text-base">
+                    {{ sb.serviceName }}
+                  </p>
+                  <p v-if="sb.employeeName" class="text-gray-400 text-sm mt-0.5">
+                    with {{ sb.employeeName }}
+                  </p>
+                </div>
+              </div>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/15 text-green-400 shrink-0">
+                Confirmed
+              </span>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-4 text-sm text-gray-300">
+              <div class="flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {{ sb.date }}
+              </div>
+              <div class="flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {{ sb.time }}
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- Book another -->
+        <button
+          class="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
+          @click="startNewBooking"
+        >
+          Book Another Appointment
+        </button>
       </div>
     </div>
 

@@ -88,7 +88,11 @@ export default eventHandler(async (event) => {
       const startTimeInMinutes = timeHour * 60 + timeMinute
       const endTimeInMinutes = startTimeInMinutes + Math.ceil(duration / 60)
 
-      console.log('Checking availability for time slot:', { startTimeInMinutes, endTimeInMinutes })
+      // Map JS day index to day name
+      const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      const bookingDayName = DAY_NAMES[new Date(`${date}T12:00:00Z`).getUTCDay()]
+
+      console.log('Checking availability for time slot:', { date, time, startTimeInMinutes, endTimeInMinutes, bookingDayName })
 
       // Get existing bookings for the specified date
       const { data: existingBookings, error: bookingsError } = await supabase
@@ -107,11 +111,10 @@ export default eventHandler(async (event) => {
 
       console.log('Found existing bookings:', existingBookings?.length || 0)
 
-      // Filter out employees who are busy during the requested time
+      // Filter out employees who are busy or not working at the requested time
       const busyEmployeeIds = new Set()
 
       existingBookings?.forEach((booking) => {
-        // Extract time from booking
         const bookingStartTime = booking.start_time.includes('T')
           ? booking.start_time.slice(11, 16)
           : booking.start_time.slice(0, 5)
@@ -120,14 +123,12 @@ export default eventHandler(async (event) => {
           ? booking.end_time.slice(11, 16)
           : booking.end_time.slice(0, 5)
 
-        // Convert booking times to minutes
         const [bookingStartHour, bookingStartMinute] = bookingStartTime.split(':').map(Number)
         const [bookingEndHour, bookingEndMinute] = bookingEndTime.split(':').map(Number)
 
         const bookingStartInMinutes = bookingStartHour * 60 + bookingStartMinute
         const bookingEndInMinutes = bookingEndHour * 60 + bookingEndMinute
 
-        // Check for time overlap
         const hasOverlap = startTimeInMinutes < bookingEndInMinutes && endTimeInMinutes > bookingStartInMinutes
 
         if (hasOverlap) {
@@ -136,10 +137,39 @@ export default eventHandler(async (event) => {
         }
       })
 
-      // Filter out busy employees
-      availableEmployees = allEmployees.filter(emp => !busyEmployeeIds.has(emp.id))
+      // Filter by: not busy + working day + shift hours
+      availableEmployees = allEmployees.filter((emp: any) => {
+        // 1. Must not have a conflicting booking
+        if (busyEmployeeIds.has(emp.id)) return false
 
-      console.log(`Available employees after time filtering: ${availableEmployees.length}`)
+        // 2. Must be working on the selected day of week
+        if (emp.working_week_days) {
+          const days: string[] = Array.isArray(emp.working_week_days)
+            ? emp.working_week_days
+            : String(emp.working_week_days).split(',').map((s: string) => s.trim())
+          if (!days.includes(bookingDayName)) {
+            console.log(`Employee ${emp.id} does not work on ${bookingDayName}`)
+            return false
+          }
+        }
+
+        // 3. Booking time window must fit within employee shift hours
+        if (emp.start_working_hour && emp.end_working_hours) {
+          const [shiftStartH, shiftStartM] = emp.start_working_hour.split(':').map(Number)
+          const [shiftEndH, shiftEndM] = emp.end_working_hours.split(':').map(Number)
+          const shiftStart = shiftStartH * 60 + shiftStartM
+          const shiftEnd = shiftEndH * 60 + shiftEndM
+
+          if (startTimeInMinutes < shiftStart || endTimeInMinutes > shiftEnd) {
+            console.log(`Employee ${emp.id} shift ${emp.start_working_hour}-${emp.end_working_hours} does not cover ${time}`)
+            return false
+          }
+        }
+
+        return true
+      })
+
+      console.log(`Available employees after filtering: ${availableEmployees.length}`)
     }
 
     // Step 4: Add service information to each employee

@@ -1,3 +1,4 @@
+/* eslint-disable @stylistic/arrow-parens */
 /* eslint-disable no-case-declarations */
 
 import { createClient } from '@supabase/supabase-js'
