@@ -24,17 +24,41 @@ const getServiceDuration = (serviceId: string | undefined) => {
 }
 
 // Fetch employees who can provide the selected service and are available at the selected date/time
+// Snapshot the query params so selecting an employee doesn't trigger a refetch
+const fetchParams = ref({
+  service_ids: activeService.value?.serviceId || '',
+  date: activeService.value?.date || '',
+  time: activeService.value?.time || '',
+  duration: getServiceDuration(activeService.value?.serviceId)
+})
+
 const { data: availableEmployeesResponse, pending, refresh: refreshEmployees } = await useLazyFetch('/api/available-employees', {
   default: () => ({ success: false, employees: [], message: '' }),
   server: false,
-  query: computed(() => ({
-    service_ids: activeService.value?.serviceId || '',
-    date: activeService.value?.date || '',
-    time: activeService.value?.time || '',
-    duration: getServiceDuration(activeService.value?.serviceId)
-  })),
-  watch: [activeServiceIndex, () => activeService.value?.date, () => activeService.value?.time]
+  query: fetchParams,
+  watch: false
 })
+
+// Only refetch when service index, date, or time actually changes — not on employee selection
+watch(
+  [activeServiceIndex, () => activeService.value?.serviceId, () => activeService.value?.date, () => activeService.value?.time],
+  ([, newServiceId, newDate, newTime]) => {
+    const next = {
+      service_ids: newServiceId || '',
+      date: newDate || '',
+      time: newTime || '',
+      duration: getServiceDuration(newServiceId)
+    }
+    const changed =
+      next.service_ids !== fetchParams.value.service_ids ||
+      next.date !== fetchParams.value.date ||
+      next.time !== fetchParams.value.time
+    if (changed) {
+      fetchParams.value = next
+      refreshEmployees()
+    }
+  }
+)
 
 // Extract employees array from the response
 const availableEmployees = computed(() => {

@@ -133,7 +133,8 @@ export default eventHandler(async (event) => {
               *,
               client_profile(*),
               employee(*),
-              service(*)
+              service(*),
+              customer(*)
             `)
 
           // Filter by client_business_id if available, otherwise by client_profile_id

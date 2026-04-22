@@ -30,6 +30,11 @@ export interface Booking {
     price: number
     duration_service_in_s: number
   }
+  customer?: {
+    id: string
+    full_name: string
+    phone_number?: string
+  }
 }
 
 export interface CreateBookingData {

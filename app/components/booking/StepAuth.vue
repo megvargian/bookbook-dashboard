@@ -138,6 +138,10 @@ async function emailSignUp() {
     toast.add({ title: 'Required fields missing', description: 'Name, email and password are required', color: 'error' })
     return
   }
+  if (!signupForm.phone_number || !signupForm.gender || !signupForm.date_of_birth) {
+    toast.add({ title: 'Required fields missing', description: 'Phone number, gender and date of birth are required', color: 'error' })
+    return
+  }
   loading.value = true
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -177,23 +181,24 @@ async function emailSignUp() {
   }
 }
 
-async function saveProfile(skip = false) {
+async function saveProfile() {
+  if (!profileForm.phone_number || !profileForm.gender || !profileForm.date_of_birth) {
+    toast.add({ title: 'Required fields missing', description: 'Phone number, gender and date of birth are all required', color: 'error' })
+    return
+  }
   loading.value = true
   try {
-    if (!skip) {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        await $fetch('/api/customer-auth', {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${session.access_token}` },
-          body: profileForm
-        })
-      }
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      await $fetch('/api/customer-auth', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: profileForm
+      })
     }
     emit('auth-complete', pendingCustomerId.value)
   } catch {
-    // Even if profile save fails, proceed
-    emit('auth-complete', pendingCustomerId.value)
+    toast.add({ title: 'Error', description: 'Failed to save profile. Please try again.', color: 'error' })
   } finally {
     loading.value = false
   }
@@ -259,18 +264,19 @@ async function saveProfile(skip = false) {
 
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Phone Number</label>
+          <label class="block text-sm font-medium text-gray-300 mb-1">Phone Number <span class="text-red-400">*</span></label>
           <input
             v-model="profileForm.phone_number"
             type="tel"
             placeholder="+1 234 567 8900"
+            required
             class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Gender <span class="text-gray-500 font-normal">(optional)</span></label>
-          <select v-model="profileForm.gender" class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">
+          <label class="block text-sm font-medium text-gray-300 mb-1">Gender <span class="text-red-400">*</span></label>
+          <select v-model="profileForm.gender" required class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="" disabled>
               Select…
             </option>
             <option value="Male">
@@ -285,20 +291,21 @@ async function saveProfile(skip = false) {
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Date of Birth <span class="text-gray-500 font-normal">(optional)</span></label>
+          <label class="block text-sm font-medium text-gray-300 mb-1">Date of Birth <span class="text-red-400">*</span></label>
           <input
             v-model="profileForm.date_of_birth"
             type="date"
+            required
             class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
         </div>
       </div>
 
-      <div class="mt-6 flex flex-col gap-3">
+      <div class="mt-6">
         <button
           class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
           :disabled="loading"
-          @click="saveProfile(false)"
+          @click="saveProfile()"
         >
           <svg
             v-if="loading"
@@ -317,9 +324,6 @@ async function saveProfile(skip = false) {
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
           Save & Continue
-        </button>
-        <button class="text-gray-500 hover:text-gray-300 text-sm transition-colors" @click="saveProfile(true)">
-          Skip for now
         </button>
       </div>
     </div>
@@ -460,20 +464,21 @@ async function saveProfile(skip = false) {
           >
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Phone Number <span class="text-gray-500 font-normal">(optional)</span></label>
+          <label class="block text-sm font-medium text-gray-300 mb-1">Phone Number <span class="text-red-400">*</span></label>
           <input
             v-model="signupForm.phone_number"
             type="tel"
             placeholder="+1 234 567 8900"
             autocomplete="tel"
+            required
             class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Gender <span class="text-gray-500 font-normal">(opt.)</span></label>
-            <select v-model="signupForm.gender" class="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-              <option value="">
+            <label class="block text-sm font-medium text-gray-300 mb-1">Gender <span class="text-red-400">*</span></label>
+            <select v-model="signupForm.gender" required class="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+              <option value="" disabled>
                 Select…
               </option>
               <option value="Male">
@@ -488,10 +493,11 @@ async function saveProfile(skip = false) {
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Date of Birth <span class="text-gray-500 font-normal">(opt.)</span></label>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Date of Birth <span class="text-red-400">*</span></label>
             <input
               v-model="signupForm.date_of_birth"
               type="date"
+              required
               class="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
           </div>

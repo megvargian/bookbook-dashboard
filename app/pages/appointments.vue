@@ -61,7 +61,7 @@ const filteredBookings = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter((b) => {
-      const fullName = `${b.client_profile?.first_name ?? ''} ${b.client_profile?.last_name ?? ''}`.toLowerCase()
+      const fullName = (b.customer?.full_name ?? `${b.client_profile?.first_name ?? ''} ${b.client_profile?.last_name ?? ''}`).toLowerCase()
       // Try to find phone in customers list
       const cust = (customers.value as any[]).find(c => c.id === b.customer_id)
       const phone = (cust?.phone_number ?? '').toLowerCase()
@@ -203,10 +203,10 @@ const exportCSV = () => {
   const rows = [
     ['Client', 'Phone', 'Service', 'Employee', 'Date & Time', 'Duration (min)', 'Amount', 'Status'],
     ...filteredBookings.value.map(b => [
-      `${b.client_profile?.first_name ?? ''} ${b.client_profile?.last_name ?? ''}`.trim(),
+      (b.customer?.full_name ?? `${b.client_profile?.first_name ?? ''} ${b.client_profile?.last_name ?? ''}`).trim(),
       (customers.value as any[]).find(c => c.id === b.customer_id)?.phone_number ?? '',
       b.service?.name ?? '',
-      `${b.employee?.first_name ?? ''} ${b.employee?.last_name ?? ''}`.trim(),
+      b.employee?.full_name ?? `${b.employee?.first_name ?? ''} ${b.employee?.last_name ?? ''}`.trim(),
       formatBookingDate(b.booking_date, b.start_time),
       getDurationMin(b) ?? '',
       b.total_price ?? '',
@@ -323,7 +323,7 @@ const exportCSV = () => {
             <!-- Client -->
             <div>
               <p class="text-sm font-semibold text-slate-800 dark:text-gray-100">
-                {{ booking.client_profile?.first_name }} {{ booking.client_profile?.last_name }}
+                {{ booking.customer?.full_name ?? `${booking.client_profile?.first_name ?? ''} ${booking.client_profile?.last_name ?? ''}`.trim() }}
               </p>
               <p class="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
                 {{ (customers as any[]).find(c => c.id === booking.customer_id)?.phone_number ?? '' }}

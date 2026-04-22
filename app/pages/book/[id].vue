@@ -38,6 +38,15 @@ const {
 // Set the client profile ID in the booking state
 bookingState.value.clientProfileId = clientProfileId
 
+// Fetch business name for the header
+const { data: businessInfo } = await useAsyncData('business-info', async () => {
+  const res = await $fetch<{ name: string | null }>('/api/public-business-name', {
+    query: { client_profile_id: clientProfileId }
+  })
+  console.log('Business name result:', res)
+  return res?.name ?? null
+})
+
 // Auth state
 const checkingAuth = ref(true)
 const isAuthenticated = ref(false)
@@ -61,8 +70,7 @@ onMounted(async () => {
         isAuthenticated.value = true
       }
     }
-  } catch {}
-  finally {
+  } catch {} finally {
     checkingAuth.value = false
   }
 })
@@ -157,12 +165,22 @@ const startNewBooking = () => {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-3xl font-bold text-white">Book Your Appointment</h1>
-            <p class="mt-1 text-gray-400">Fast and easy online booking</p>
+            <h1 class="text-3xl font-bold text-white">
+              Book Your Appointment<template v-if="businessInfo">
+                at {{ businessInfo }}
+              </template>
+            </h1>
+            <p class="mt-1 text-gray-400">
+              Fast and easy online booking
+            </p>
           </div>
           <div class="text-right">
-            <div class="text-sm text-gray-400">Step {{ currentStep }} of 3</div>
-            <div class="text-lg font-semibold text-white">{{ stepTitles[currentStep - 1] }}</div>
+            <div class="text-sm text-gray-400">
+              Step {{ currentStep }} of 3
+            </div>
+            <div class="text-lg font-semibold text-white">
+              {{ stepTitles[currentStep - 1] }}
+            </div>
           </div>
         </div>
       </div>
@@ -174,8 +192,18 @@ const startNewBooking = () => {
         <!-- Check icon + title -->
         <div class="flex flex-col items-center text-center mb-8">
           <div class="inline-flex items-center justify-center w-20 h-20 bg-green-500/20 rounded-full mb-5">
-            <svg class="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            <svg
+              class="w-10 h-10 text-green-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
           <h2 class="text-3xl font-bold text-white mb-2">
@@ -216,14 +244,34 @@ const startNewBooking = () => {
             </div>
             <div class="mt-4 flex flex-wrap gap-4 text-sm text-gray-300">
               <div class="flex items-center gap-1.5">
-                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <svg
+                  class="w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
                 </svg>
                 {{ sb.date }}
               </div>
               <div class="flex items-center gap-1.5">
-                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  class="w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 {{ sb.time }}
               </div>
@@ -243,12 +291,18 @@ const startNewBooking = () => {
 
     <!-- Booking Flow -->
     <div v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
       <!-- Auth Gate: shown while checking or when not authenticated -->
       <template v-if="checkingAuth">
         <div class="flex items-center justify-center py-24">
           <svg class="w-10 h-10 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
         </div>
@@ -261,102 +315,146 @@ const startNewBooking = () => {
       </template>
 
       <template v-else>
-      <!-- Progress Bar -->
-      <div class="mb-8">
-        <div class="relative">
-          <div class="overflow-hidden h-2 mb-4 text-xs flex rounded-full bg-gray-700">
-            <div
-              :style="{ width: progressPercentage + '%' }"
-              class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-primary-500 transition-all duration-500"
-            ></div>
+        <!-- Progress Bar -->
+        <div class="mb-8">
+          <div class="relative">
+            <div class="overflow-hidden h-2 mb-4 text-xs flex rounded-full bg-gray-700">
+              <div
+                :style="{ width: progressPercentage + '%' }"
+                class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-primary-500 transition-all duration-500"
+              />
+            </div>
           </div>
-        </div>
 
-        <!-- Step Indicators -->
-        <div class="flex justify-between">
-          <div
-            v-for="(title, index) in stepTitles"
-            :key="index"
-            class="flex flex-col items-center"
-            :class="{ 'flex-1': index < stepTitles.length - 1 }"
-          >
+          <!-- Step Indicators -->
+          <div class="flex justify-between">
             <div
-              class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all"
-              :class="[
-                currentStep > index + 1 ? 'bg-primary-500 border-primary-500 text-white' :
-                currentStep === index + 1 ? 'border-primary-500 text-primary-500 bg-gray-800' :
-                'border-gray-600 text-gray-500 bg-gray-800'
-              ]"
+              v-for="(title, index) in stepTitles"
+              :key="index"
+              class="flex flex-col items-center"
+              :class="{ 'flex-1': index < stepTitles.length - 1 }"
             >
-              <span v-if="currentStep > index + 1" class="text-white">✓</span>
-              <span v-else>{{ index + 1 }}</span>
-            </div>
-            <div class="mt-2 text-xs text-center hidden sm:block" :class="currentStep === index + 1 ? 'text-white font-medium' : 'text-gray-500'">
-              {{ title }}
+              <div
+                class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all"
+                :class="[
+                  currentStep > index + 1 ? 'bg-primary-500 border-primary-500 text-white'
+                  : currentStep === index + 1 ? 'border-primary-500 text-primary-500 bg-gray-800'
+                    : 'border-gray-600 text-gray-500 bg-gray-800'
+                ]"
+              >
+                <span v-if="currentStep > index + 1" class="text-white">✓</span>
+                <span v-else>{{ index + 1 }}</span>
+              </div>
+              <div class="mt-2 text-xs text-center hidden sm:block" :class="currentStep === index + 1 ? 'text-white font-medium' : 'text-gray-500'">
+                {{ title }}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Step Description -->
-      <div class="mb-8 text-center">
-        <p class="text-gray-300 text-lg">{{ stepDescriptions[currentStep - 1] }}</p>
-      </div>
+        <!-- Step Description -->
+        <div class="mb-8 text-center">
+          <p class="text-gray-300 text-lg">
+            {{ stepDescriptions[currentStep - 1] }}
+          </p>
+        </div>
 
-      <!-- Step Content -->
-      <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-8 mb-8">
-        <StepServices v-if="currentStep === 1" />
-        <StepDateTime v-else-if="currentStep === 2" />
-        <StepEmployee v-else-if="currentStep === 3" />
-      </div>
+        <!-- Step Content -->
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-8 mb-8">
+          <StepServices v-if="currentStep === 1" />
+          <StepDateTime v-else-if="currentStep === 2" />
+          <StepEmployee v-else-if="currentStep === 3" />
+        </div>
 
-      <!-- Navigation Buttons -->
-      <div class="flex items-center justify-between gap-4">
-        <button
-          v-if="currentStep > 1"
-          class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-          @click="prevStep"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-          Back
-        </button>
-        <div v-else />
+        <!-- Navigation Buttons -->
+        <div class="flex items-center justify-between gap-4">
+          <button
+            v-if="currentStep > 1"
+            class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+            @click="prevStep"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Back
+          </button>
+          <div v-else />
 
-        <!-- Next button (steps 1–2) -->
-        <button
-          v-if="currentStep < 3"
-          :disabled="!canProceed"
-          class="px-6 py-3 font-medium rounded-lg transition-colors flex items-center gap-2 ml-auto"
-          :class="canProceed ? 'bg-primary-600 hover:bg-primary-700 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'"
-          @click="nextStep"
-        >
-          Next
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+          <!-- Next button (steps 1–2) -->
+          <button
+            v-if="currentStep < 3"
+            :disabled="!canProceed"
+            class="px-6 py-3 font-medium rounded-lg transition-colors flex items-center gap-2 ml-auto"
+            :class="canProceed ? 'bg-primary-600 hover:bg-primary-700 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'"
+            @click="nextStep"
+          >
+            Next
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
 
-        <!-- Book Now button (step 3) -->
-        <button
-          v-if="currentStep === 3"
-          :disabled="!canSubmit || submitBookingLoading"
-          class="px-8 py-3 font-semibold rounded-lg transition-colors flex items-center gap-2 ml-auto"
-          :class="canSubmit && !submitBookingLoading ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'"
-          @click="submitBooking"
-        >
-          <svg v-if="submitBookingLoading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          {{ submitBookingLoading ? 'Booking…' : 'Book Now' }}
-          <svg v-if="!submitBookingLoading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-        </button>
-      </div>
-
+          <!-- Book Now button (step 3) -->
+          <button
+            v-if="currentStep === 3"
+            :disabled="!canSubmit || submitBookingLoading"
+            class="px-8 py-3 font-semibold rounded-lg transition-colors flex items-center gap-2 ml-auto"
+            :class="canSubmit && !submitBookingLoading ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'"
+            @click="submitBooking"
+          >
+            <svg
+              v-if="submitBookingLoading"
+              class="w-5 h-5 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            {{ submitBookingLoading ? 'Booking…' : 'Book Now' }}
+            <svg
+              v-if="!submitBookingLoading"
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </button>
+        </div>
       </template><!-- end authenticated -->
     </div>
   </div>
