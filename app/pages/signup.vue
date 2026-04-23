@@ -48,6 +48,14 @@
           />
         </UFormField>
 
+        <UFormField name="phone" label="Phone Number (Optional)">
+          <PhoneInput
+            v-model="state.phone"
+            placeholder="234 567 8900"
+            class="phone-input-wrapper"
+          />
+        </UFormField>
+
         <UButton
           type="submit"
           block
@@ -78,6 +86,7 @@
 
 <script setup lang="ts">
 import { z } from 'zod'
+import PhoneInput from '~/components/ui/PhoneInput.vue'
 
 definePageMeta({
   layout: false
@@ -98,7 +107,8 @@ watchEffect(() => {
 const schema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  confirmPassword: z.string()
+  confirmPassword: z.string(),
+  phone: z.string().optional()
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Passwords don\'t match',
   path: ['confirmPassword']
@@ -107,7 +117,8 @@ const schema = z.object({
 const state = reactive({
   email: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  phone: ''
 })
 
 const loading = ref(false)
@@ -152,3 +163,17 @@ async function handleSignup() {
   }
 }
 </script>
+
+<style scoped>
+/* Style PhoneInput to match Nuxt UI components */
+:deep(.phone-input-wrapper) {
+  --ring-color: rgb(var(--color-primary-500));
+}
+
+:deep(.phone-input-wrapper input),
+:deep(.phone-input-wrapper button) {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  height: 44px; /* Match UInput size="lg" */
+}
+</style>

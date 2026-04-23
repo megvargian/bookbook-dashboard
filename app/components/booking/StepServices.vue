@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { useBookingFlow } from '~/composables/useBookingFlow'
+import { useBookingFlow2 } from '~/composables/useBookingFlow2'
 
-const { bookingState, updateServiceBookings } = useBookingFlow()
+// Detect which booking flow to use based on the current route
+const route = useRoute()
+const isNewBookingFlow = route.path.startsWith('/booking/')
+
+const { bookingState: bookingState1, updateServiceBookings: updateServiceBookings1 } = useBookingFlow()
+const { bookingState: bookingState2, updateServiceBookings: updateServiceBookings2 } = useBookingFlow2()
+
+// Use the appropriate flow based on route
+const bookingState = computed(() => isNewBookingFlow ? bookingState2.value : bookingState1.value)
+const updateServiceBookings = isNewBookingFlow ? updateServiceBookings2 : updateServiceBookings1
 
 // Fetch services from API (no auth required for public booking)
 const { data: services, pending, error, refresh } = useFetch('/api/public-services', {
@@ -34,15 +44,17 @@ watchEffect(() => {
 })
 
 const toggleService = (serviceId: string) => {
-  const index = bookingState.value.selectedServices.indexOf(serviceId)
+  const currentState = isNewBookingFlow ? bookingState2.value : bookingState1.value
+  const index = currentState.selectedServices.indexOf(serviceId)
+
   if (index > -1) {
-    bookingState.value.selectedServices.splice(index, 1)
+    currentState.selectedServices.splice(index, 1)
   } else {
-    bookingState.value.selectedServices.push(serviceId)
+    currentState.selectedServices.push(serviceId)
   }
 
   // Update service bookings when services change
-  updateServiceBookings(bookingState.value.selectedServices, services.value)
+  updateServiceBookings(currentState.selectedServices, services.value)
 }
 
 const isServiceSelected = (serviceId: string) => {
@@ -93,7 +105,7 @@ const isServiceSelected = (serviceId: string) => {
             <h3 class="text-lg font-semibold text-slate-800 mb-2">
               {{ service.name }}
             </h3>
-            <p v-if="service.description" class="text-white text-sm mb-3">
+            <p v-if="service.description" class="text-primary text-sm mb-3">
               {{ service.description }}
             </p>
             <div class="flex items-center gap-4 text-sm">

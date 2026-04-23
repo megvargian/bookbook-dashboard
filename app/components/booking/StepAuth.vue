@@ -1,5 +1,7 @@
 <!-- eslint-disable @typescript-eslint/no-explicit-any -->
 <script setup lang="ts">
+import PhoneInput from '~/components/ui/PhoneInput.vue'
+
 const emit = defineEmits<{
   (e: 'auth-complete', customerId: string): void
 }>()
@@ -265,13 +267,11 @@ async function saveProfile() {
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-600 mb-1">Phone Number <span class="text-red-500">*</span></label>
-          <input
+          <PhoneInput
             v-model="profileForm.phone_number"
-            type="tel"
-            placeholder="+1 234 567 8900"
+            placeholder="234 567 8900"
             required
-            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
-          >
+          />
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-600 mb-1">Gender <span class="text-red-500">*</span></label>
@@ -465,14 +465,11 @@ async function saveProfile() {
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-600 mb-1">Phone Number <span class="text-red-500">*</span></label>
-          <input
+          <PhoneInput
             v-model="signupForm.phone_number"
-            type="tel"
-            placeholder="+1 234 567 8900"
-            autocomplete="tel"
+            placeholder="234 567 8900"
             required
-            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
-          >
+          />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
