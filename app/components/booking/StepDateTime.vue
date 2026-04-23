@@ -142,12 +142,12 @@ onMounted(() => {
 <template>
   <div class="step-datetime" v-if="bookingState.serviceBookings.length > 0">
     <div class="step-description">
-      <p class="text-gray-400 mb-6">Select a date and time for each service</p>
+      <p class="text-white mb-6">Select a date and time for each service</p>
     </div>
 
     <!-- Service Navigation -->
     <div v-if="bookingState.serviceBookings.length > 1" class="mb-6">
-      <h3 class="text-lg font-semibold text-white mb-3">Configure Date & Time for Each Service</h3>
+      <h3 class="text-lg font-semibold text-slate-800 mb-3">Configure Date & Time for Each Service</h3>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="(service, index) in bookingState.serviceBookings"
@@ -156,10 +156,10 @@ onMounted(() => {
           :class="[
             'px-4 py-2 rounded-lg text-sm font-medium transition-all',
             activeServiceIndex === index
-              ? 'bg-blue-500 text-white'
+              ? 'bg-navy-500 text-white'
               : service.date && service.time
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           ]"
         >
           {{ service.serviceName || `Service ${index + 1}` }}
@@ -172,10 +172,10 @@ onMounted(() => {
 
     <!-- Current Service -->
     <div v-if="activeService" class="mb-6">
-      <h4 class="text-xl font-semibold text-white mb-2">
+      <h4 class="text-xl font-semibold text-slate-800 mb-2">
         {{ activeService.serviceName || `Service ${activeServiceIndex + 1}` }}
       </h4>
-      <p v-if="getServiceDetails(activeService.serviceId)" class="text-gray-400 text-sm">
+      <p v-if="getServiceDetails(activeService.serviceId)" class="text-white text-sm">
         Duration: {{ Math.round(getServiceDetails(activeService.serviceId)?.duration_service_in_s / 3600 * 10) / 10 }}h
         • Price: ${{ getServiceDetails(activeService.serviceId)?.price }}
       </p>
@@ -184,21 +184,21 @@ onMounted(() => {
     <div class="grid md:grid-cols-2 gap-8">
       <!-- Calendar -->
       <div class="calendar-section">
-        <div class="bg-gray-700 rounded-lg p-4">
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
           <!-- Calendar Header -->
           <div class="flex items-center justify-between mb-4">
             <button
               @click="navigateMonth(-1)"
-              class="p-2 text-gray-400 hover:text-white transition-colors"
+              class="p-2 text-slate-400 hover:text-navy-500 transition-colors"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h3 class="text-lg font-semibold text-white">{{ monthYear }}</h3>
+            <h3 class="text-lg font-semibold text-slate-800">{{ monthYear }}</h3>
             <button
               @click="navigateMonth(1)"
-              class="p-2 text-gray-400 hover:text-white transition-colors"
+              class="p-2 text-slate-400 hover:text-navy-500 transition-colors"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -209,7 +209,7 @@ onMounted(() => {
           <!-- Days of Week -->
           <div class="grid grid-cols-7 gap-1 mb-2">
             <div v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day"
-                 class="text-center text-sm font-medium text-gray-400 p-2">
+                 class="text-center text-xs font-medium text-slate-400 p-2">
               {{ day }}
             </div>
           </div>
@@ -224,12 +224,12 @@ onMounted(() => {
                 :class="[
                   'aspect-square calendar-day p-2 text-sm rounded-lg transition-all',
                   isDateSelected(day)
-                    ? 'bg-blue-500 text-white font-bold'
+                    ? 'bg-navy-500 text-white font-bold'
                     : isToday(day)
-                      ? 'bg-blue-500/20 text-blue-400 font-medium'
+                      ? 'bg-navy-50 text-navy-500 font-medium'
                       : isPast(day)
-                        ? 'text-gray-600 cursor-not-allowed'
-                        : 'text-gray-300 hover:bg-gray-600'
+                        ? 'text-slate-300 cursor-not-allowed'
+                        : 'text-slate-600 hover:bg-slate-200'
                 ]"
               >
                 {{ day.getDate() }}
@@ -242,13 +242,13 @@ onMounted(() => {
 
       <!-- Time Slots -->
       <div class="time-slots-section">
-        <h3 class="text-lg font-semibold text-white mb-4">Available Times</h3>
+        <h3 class="text-lg font-semibold text-slate-800 mb-4">Available Times</h3>
 
-        <div v-if="businessHours" class="text-xs text-gray-500 mb-3">
+        <div v-if="businessHours" class="text-xs text-white mb-3">
           Hours: {{ businessHours.opening_time }} – {{ businessHours.closing_time }}
         </div>
 
-        <div v-if="!selectedDate" class="text-center py-8 text-gray-400">
+        <div v-if="!selectedDate" class="text-center py-8 text-white">
           Please select a date
         </div>
 
@@ -258,10 +258,10 @@ onMounted(() => {
             :key="time"
             @click="selectTimeSlot(time)"
             :class="[
-              'px-3 py-2 text-sm rounded-lg transition-all',
+              'px-3 py-2 text-sm rounded-lg transition-all border',
               isSelected(time)
-                ? 'bg-blue-500 text-white font-semibold'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                ? 'bg-navy-500 text-white font-semibold border-navy-500'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-navy-300 hover:text-navy-500'
             ]"
           >
             {{ time }}
@@ -271,32 +271,32 @@ onMounted(() => {
     </div>
 
     <!-- Navigation within services -->
-    <div v-if="bookingState.serviceBookings.length > 1" class="flex justify-between mt-6 pt-4 border-t border-gray-700">
+    <div v-if="bookingState.serviceBookings.length > 1" class="flex justify-between mt-6 pt-4 border-t border-slate-200">
       <button
         v-if="activeServiceIndex > 0"
         @click="goToService(activeServiceIndex - 1)"
-        class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
       >
         ← Previous Service
       </button>
-      <div v-else></div>
+      <div v-else />
 
       <button
         v-if="activeServiceIndex < bookingState.serviceBookings.length - 1"
         @click="goToService(activeServiceIndex + 1)"
-        class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
       >
         Next Service →
       </button>
     </div>
 
     <!-- Summary -->
-    <div v-if="bookingState.serviceBookings.some(sb => sb.date && sb.time)" class="mt-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-      <h4 class="text-green-400 font-medium mb-2">Selected Times:</h4>
+    <div v-if="bookingState.serviceBookings.some(sb => sb.date && sb.time)" class="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+      <h4 class="text-green-700 font-medium mb-2">Selected Times:</h4>
       <div class="space-y-1">
         <div v-for="service in bookingState.serviceBookings.filter(sb => sb.date && sb.time)" :key="service.serviceId"
-             class="text-sm text-gray-300">
-          <span class="text-white font-medium">{{ service.serviceName }}</span>:
+             class="text-sm text-slate-600">
+          <span class="text-slate-800 font-medium">{{ service.serviceName }}</span>:
           {{ service.date }} at {{ service.time }}
         </div>
       </div>

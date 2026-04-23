@@ -53,20 +53,28 @@ const isServiceSelected = (serviceId: string) => {
 <template>
   <div class="step-services">
     <div class="step-description">
-      <p class="text-gray-400 mb-6">Select one or more services you'd like to book</p>
+      <p class="text-white mb-6">
+        Select one or more services you'd like to book
+      </p>
     </div>
 
     <div v-if="pending" class="text-center py-8">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto" />
-      <p class="text-gray-400 mt-4">Loading services...</p>
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-navy-500 mx-auto" />
+      <p class="text-slate-400 mt-4">
+        Loading services...
+      </p>
     </div>
 
     <div v-else-if="error" class="text-center py-8">
-      <p class="text-red-500 mb-2">Error loading services</p>
-      <p class="text-gray-400 text-sm">{{ error }}</p>
+      <p class="text-red-500 mb-2">
+        Error loading services
+      </p>
+      <p class="text-slate-400 text-sm">
+        {{ error }}
+      </p>
     </div>
 
-    <div v-else-if="!services || services.length === 0" class="text-center py-8 text-gray-400">
+    <div v-else-if="!services || services.length === 0" class="text-center py-8 text-white">
       No services available at this time.
     </div>
 
@@ -76,19 +84,21 @@ const isServiceSelected = (serviceId: string) => {
         :key="service.id"
         class="service-card p-6 rounded-lg border-2 transition-all cursor-pointer"
         :class="isServiceSelected(service.id)
-          ? 'border-blue-500 bg-blue-500/10'
-          : 'border-gray-700 bg-gray-800 hover:border-gray-600'"
+          ? 'border-navy-500 bg-navy-50'
+          : 'border-slate-200 bg-white hover:border-navy-300 shadow-sm'"
         @click="toggleService(service.id)"
       >
         <div class="flex justify-between items-start">
           <div class="flex-1">
-            <h3 class="text-lg font-semibold text-white mb-2">{{ service.name }}</h3>
-            <p v-if="service.description" class="text-gray-400 text-sm mb-3">
+            <h3 class="text-lg font-semibold text-slate-800 mb-2">
+              {{ service.name }}
+            </h3>
+            <p v-if="service.description" class="text-white text-sm mb-3">
               {{ service.description }}
             </p>
             <div class="flex items-center gap-4 text-sm">
-              <span class="text-blue-400 font-semibold">${{ service.price }}</span>
-              <span v-if="service.duration_service_in_s" class="text-gray-400">
+              <span class="text-navy-500 font-semibold">${{ service.price }}</span>
+              <span v-if="service.duration_service_in_s" class="text-slate-400">
                 {{ Math.round(service.duration_service_in_s / 3600 * 10) / 10 }}h
               </span>
             </div>
@@ -96,11 +106,22 @@ const isServiceSelected = (serviceId: string) => {
           <div
             class="flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all"
             :class="isServiceSelected(service.id)
-              ? 'border-blue-500 bg-blue-500'
-              : 'border-gray-600'"
+              ? 'border-navy-500 bg-navy-500'
+              : 'border-slate-300'"
           >
-            <svg v-if="isServiceSelected(service.id)" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            <svg
+              v-if="isServiceSelected(service.id)"
+              class="w-4 h-4 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
         </div>

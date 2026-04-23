@@ -159,7 +159,7 @@ const startNewBooking = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+  <div class="min-h-screen">
     <!-- Header -->
     <div class="bg-gray-800/50 border-b border-gray-700 backdrop-blur-sm sticky top-0 z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -170,12 +170,12 @@ const startNewBooking = () => {
                 at {{ businessInfo }}
               </template>
             </h1>
-            <p class="mt-1 text-gray-400">
+            <p class="mt-1 text-white">
               Fast and easy online booking
             </p>
           </div>
           <div class="text-right">
-            <div class="text-sm text-gray-400">
+            <div class="text-sm text-white">
               Step {{ currentStep }} of 3
             </div>
             <div class="text-lg font-semibold text-white">
@@ -209,14 +209,14 @@ const startNewBooking = () => {
           <h2 class="text-3xl font-bold text-white mb-2">
             Booking Confirmed!
           </h2>
-          <p class="text-gray-400">
+          <p class="text-white">
             Your appointment has been successfully scheduled. You will receive a confirmation shortly.
           </p>
         </div>
 
         <!-- Booking details -->
         <div class="space-y-4 mb-8">
-          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <h3 class="text-sm font-semibold text-white uppercase tracking-wider mb-3">
             Appointment Summary
           </h3>
           <div
@@ -226,14 +226,14 @@ const startNewBooking = () => {
           >
             <div class="flex items-start justify-between gap-4">
               <div class="flex items-center gap-3">
-                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-500/20 text-primary-400 text-sm font-bold shrink-0">
+                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-primary-500/20 text-white text-sm font-bold shrink-0">
                   {{ index + 1 }}
                 </div>
                 <div>
                   <p class="text-white font-semibold text-base">
                     {{ sb.serviceName }}
                   </p>
-                  <p v-if="sb.employeeName" class="text-gray-400 text-sm mt-0.5">
+                  <p v-if="sb.employeeName" class="text-white text-sm mt-0.5">
                     with {{ sb.employeeName }}
                   </p>
                 </div>
@@ -242,10 +242,10 @@ const startNewBooking = () => {
                 Confirmed
               </span>
             </div>
-            <div class="mt-4 flex flex-wrap gap-4 text-sm text-gray-300">
+            <div class="mt-4 flex flex-wrap gap-4 text-sm text-white">
               <div class="flex items-center gap-1.5">
                 <svg
-                  class="w-4 h-4 text-gray-500"
+                  class="w-4 h-4 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -261,7 +261,7 @@ const startNewBooking = () => {
               </div>
               <div class="flex items-center gap-1.5">
                 <svg
-                  class="w-4 h-4 text-gray-500"
+                  class="w-4 h-4 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -338,14 +338,14 @@ const startNewBooking = () => {
                 class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all"
                 :class="[
                   currentStep > index + 1 ? 'bg-primary-500 border-primary-500 text-white'
-                  : currentStep === index + 1 ? 'border-primary-500 text-primary-500 bg-gray-800'
+                  : currentStep === index + 1 ? 'border-primary-500 text-white bg-gray-800'
                     : 'border-gray-600 text-gray-500 bg-gray-800'
                 ]"
               >
                 <span v-if="currentStep > index + 1" class="text-white">✓</span>
                 <span v-else>{{ index + 1 }}</span>
               </div>
-              <div class="mt-2 text-xs text-center hidden sm:block" :class="currentStep === index + 1 ? 'text-white font-medium' : 'text-gray-500'">
+              <div class="mt-2 text-xs text-center hidden sm:block" :class="currentStep === index + 1 ? 'text-gray-500 font-medium' : 'text-gray-500'">
                 {{ title }}
               </div>
             </div>
@@ -354,7 +354,7 @@ const startNewBooking = () => {
 
         <!-- Step Description -->
         <div class="mb-8 text-center">
-          <p class="text-gray-300 text-lg">
+          <p class="text-gray-500 text-lg">
             {{ stepDescriptions[currentStep - 1] }}
           </p>
         </div>

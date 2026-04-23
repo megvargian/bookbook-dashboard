@@ -119,14 +119,14 @@ const isServiceConfigured = (serviceBooking: any) => {
 <template>
   <div v-if="bookingState.serviceBookings.length > 0" class="step-employee">
     <div class="step-description">
-      <p class="text-gray-400 mb-6">
+      <p class="text-white mb-6">
         Choose an available employee for each service based on your selected date and time
       </p>
     </div>
 
     <!-- Service Navigation -->
     <div v-if="bookingState.serviceBookings.length > 1" class="mb-6">
-      <h3 class="text-lg font-semibold text-white mb-3">
+      <h3 class="text-lg font-semibold text-slate-800 mb-3">
         Select Employee for Each Service
       </h3>
       <div class="flex flex-wrap gap-2">
@@ -136,12 +136,12 @@ const isServiceConfigured = (serviceBooking: any) => {
           :class="[
             'px-4 py-2 rounded-lg text-sm font-medium transition-all',
             activeServiceIndex === index
-              ? 'bg-blue-500 text-white'
+              ? 'bg-navy-500 text-white'
               : service.employeeId
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                ? 'bg-green-50 text-green-700 border border-green-200'
                 : isServiceConfigured(service)
-                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  : 'bg-red-500/20 text-red-400 border border-red-500/30 cursor-not-allowed'
+                  ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-red-50 text-red-500 border border-red-200 cursor-not-allowed'
           ]"
           :disabled="!isServiceConfigured(service)"
           @click="goToService(index)"
@@ -155,15 +155,15 @@ const isServiceConfigured = (serviceBooking: any) => {
 
     <!-- Current Service Info -->
     <div v-if="activeService" class="mb-6">
-      <h4 class="text-xl font-semibold text-white mb-2">
+      <h4 class="text-xl font-semibold text-slate-800 mb-2">
         {{ activeService.serviceName || `Service ${activeServiceIndex + 1}` }}
       </h4>
-      <div class="flex flex-wrap gap-4 text-sm text-gray-400">
+      <div class="flex flex-wrap gap-4 text-sm text-white">
         <span v-if="getServiceDetails(activeService.serviceId)">
           Duration: {{ Math.round(getServiceDetails(activeService.serviceId)?.duration_service_in_s / 3600 * 10) / 10 }}h
           • Price: ${{ getServiceDetails(activeService.serviceId)?.price }}
         </span>
-        <span v-if="activeService.date && activeService.time" class="text-blue-400">
+        <span v-if="activeService.date && activeService.time" class="text-white">
           📅 {{ activeService.date }} at {{ activeService.time }}
         </span>
       </div>
@@ -235,7 +235,7 @@ const isServiceConfigured = (serviceBooking: any) => {
       </div>
 
       <div v-else>
-        <h4 class="text-lg font-semibold text-white mb-6">
+        <h4 class="text-lg font-semibold text-slate-800 mb-6">
           Available Employees
         </h4>
 
@@ -244,22 +244,22 @@ const isServiceConfigured = (serviceBooking: any) => {
           <div
             class="employee-card p-6 rounded-lg border-2 transition-all cursor-pointer"
             :class="isAnyoneSelected
-              ? 'border-blue-500 bg-blue-500/10'
-              : 'border-gray-700 bg-gray-800 hover:border-gray-600'"
+              ? 'border-navy-500 bg-navy-50'
+              : 'border-slate-200 bg-white hover:border-navy-300 shadow-sm'"
             @click="selectAnyone()"
           >
             <div class="flex flex-col items-center text-center">
-              <div class="w-20 h-20 rounded-full bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-white text-3xl mb-4">
+              <div class="w-20 h-20 rounded-full bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center text-white text-3xl mb-4">
                 🎲
               </div>
-              <h3 class="text-lg font-semibold text-white mb-1">
+              <h3 class="text-lg font-semibold text-slate-800 mb-1">
                 Anyone
               </h3>
-              <p class="text-gray-400 text-sm mb-3">
+              <p class="text-white text-sm mb-3">
                 Let us assign the best available employee
               </p>
               <div v-if="isAnyoneSelected" class="mt-1">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-500 text-white">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-navy-500 text-white">
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
@@ -273,8 +273,8 @@ const isServiceConfigured = (serviceBooking: any) => {
             :key="employee.id"
             class="employee-card p-6 rounded-lg border-2 transition-all cursor-pointer"
             :class="isEmployeeSelected(employee.id)
-              ? 'border-blue-500 bg-blue-500/10'
-              : 'border-gray-700 bg-gray-800 hover:border-gray-600'"
+              ? 'border-navy-500 bg-navy-50'
+              : 'border-slate-200 bg-white hover:border-navy-300 shadow-sm'"
             @click="selectEmployee(employee.id, employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim())"
           >
             <div class="flex flex-col items-center text-center">
@@ -284,28 +284,28 @@ const isServiceConfigured = (serviceBooking: any) => {
                 :alt="employee.full_name"
                 class="w-20 h-20 rounded-full object-cover mb-4"
               >
-              <div v-else class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold mb-4">
+              <div v-else class="w-20 h-20 rounded-full bg-gradient-to-br from-navy-400 to-navy-600 flex items-center justify-center text-white text-2xl font-bold mb-4">
                 {{ (employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`).trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() }}
               </div>
-              <h3 class="text-lg font-semibold text-white mb-1">
+              <h3 class="text-lg font-semibold text-slate-800 mb-1">
                 {{ employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() }}
               </h3>
-              <p v-if="employee.email" class="text-gray-400 text-sm mb-2">
+              <p v-if="employee.email" class="text-white text-sm mb-2">
                 {{ employee.email }}
               </p>
 
               <!-- Show service compatibility -->
-              <div v-if="employee.can_provide_services" class="text-xs text-gray-500 mb-3">
-                <span v-if="employee.matches_requested_services" class="text-green-400">
+              <div v-if="employee.can_provide_services" class="text-xs text-white mb-3">
+                <span v-if="employee.matches_requested_services" class="text-green-600">
                   ✓ Can provide this service
                 </span>
-                <span v-else class="text-yellow-400">
+                <span v-else class="text-amber-500">
                   ⚠ Limited service availability
                 </span>
               </div>
 
               <!-- Availability indicator -->
-              <div class="flex items-center gap-2 text-xs text-green-400 mb-3">
+              <div class="flex items-center gap-2 text-xs text-green-600 mb-3">
                 <svg
                   class="w-4 h-4"
                   fill="none"
@@ -323,7 +323,7 @@ const isServiceConfigured = (serviceBooking: any) => {
               </div>
 
               <div v-if="isEmployeeSelected(employee.id)" class="mt-2">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-500 text-white">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-navy-500 text-white">
                   <svg
                     class="w-4 h-4 mr-1"
                     fill="none"
@@ -346,10 +346,10 @@ const isServiceConfigured = (serviceBooking: any) => {
       </div>
 
       <!-- Navigation between services -->
-      <div v-if="bookingState.serviceBookings.length > 1" class="flex justify-between mt-6 pt-4 border-t border-gray-700">
+      <div v-if="bookingState.serviceBookings.length > 1" class="flex justify-between mt-6 pt-4 border-t border-slate-200">
         <button
           v-if="activeServiceIndex > 0"
-          class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
           @click="goToService(activeServiceIndex - 1)"
         >
           ← Previous Service
@@ -358,7 +358,7 @@ const isServiceConfigured = (serviceBooking: any) => {
 
         <button
           v-if="activeServiceIndex < bookingState.serviceBookings.length - 1"
-          class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
           @click="goToService(activeServiceIndex + 1)"
         >
           Next Service →
@@ -366,21 +366,21 @@ const isServiceConfigured = (serviceBooking: any) => {
       </div>
 
       <!-- Summary -->
-      <div v-if="bookingState.serviceBookings.some(sb => sb.employeeId)" class="mt-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-        <h4 class="text-green-400 font-medium mb-2">
+      <div v-if="bookingState.serviceBookings.some(sb => sb.employeeId)" class="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <h4 class="text-green-700 font-medium mb-2">
           Selected Employees:
         </h4>
         <div class="space-y-2">
           <div
             v-for="service in bookingState.serviceBookings.filter(sb => sb.employeeId)"
             :key="service.serviceId"
-            class="text-sm text-gray-300 flex justify-between items-center"
+            class="text-sm text-slate-600 flex justify-between items-center"
           >
             <div>
-              <span class="text-white font-medium">{{ service.serviceName }}</span>
-              <span class="text-gray-400"> • {{ service.date }} at {{ service.time }}</span>
+              <span class="text-slate-800 font-medium">{{ service.serviceName }}</span>
+              <span class="text-slate-400"> • {{ service.date }} at {{ service.time }}</span>
             </div>
-            <span class="text-blue-400 font-medium">{{ service.employeeName }}</span>
+            <span class="text-navy-500 font-medium">{{ service.employeeName }}</span>
           </div>
         </div>
       </div>

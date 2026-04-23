@@ -208,8 +208,8 @@ async function saveProfile() {
 <template>
   <div class="flex items-center justify-center min-h-[60vh] px-4">
     <!-- Checking session -->
-    <div v-if="view === 'checking'" class="flex flex-col items-center gap-4 text-white">
-      <svg class="w-10 h-10 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
+    <div v-if="view === 'checking'" class="flex flex-col items-center gap-4 text-slate-600">
+      <svg class="w-10 h-10 animate-spin text-navy-400" fill="none" viewBox="0 0 24 24">
         <circle
           class="opacity-25"
           cx="12"
@@ -220,16 +220,16 @@ async function saveProfile() {
         />
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
-      <p class="text-gray-400">
+      <p class="text-slate-400">
         Checking your session…
       </p>
     </div>
 
     <!-- Email verification sent -->
     <div v-else-if="view === 'verify-email'" class="max-w-sm w-full text-center">
-      <div class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div class="w-16 h-16 bg-navy-50 rounded-full flex items-center justify-center mx-auto mb-4">
         <svg
-          class="w-8 h-8 text-blue-400"
+          class="w-8 h-8 text-navy-500"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -242,40 +242,40 @@ async function saveProfile() {
           />
         </svg>
       </div>
-      <h2 class="text-xl font-bold text-white mb-2">
+      <h2 class="text-xl font-bold text-slate-800 mb-2">
         Check your email
       </h2>
-      <p class="text-gray-400 mb-6">
-        We sent a confirmation link to <strong class="text-white">{{ signupForm.email }}</strong>. Click it to activate your account, then return here to book.
+      <p class="text-white mb-6">
+        We sent a confirmation link to <strong class="text-slate-800">{{ signupForm.email }}</strong>. Click it to activate your account, then return here to book.
       </p>
-      <button class="text-blue-400 hover:underline text-sm" @click="view = 'signup'">
+      <button class="text-navy-500 hover:underline text-sm" @click="view = 'signup'">
         ← Back to sign up
       </button>
     </div>
 
     <!-- Complete profile (after Google / missing phone) -->
     <div v-else-if="view === 'complete-profile'" class="max-w-sm w-full">
-      <h2 class="text-2xl font-bold text-white mb-1">
+      <h2 class="text-2xl font-bold text-slate-800 mb-1">
         One more step
       </h2>
-      <p class="text-gray-400 mb-6">
+      <p class="text-white mb-6">
         Help us reach you about your appointment
       </p>
 
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Phone Number <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Phone Number <span class="text-red-500">*</span></label>
           <input
             v-model="profileForm.phone_number"
             type="tel"
             placeholder="+1 234 567 8900"
             required
-            class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
           >
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Gender <span class="text-red-400">*</span></label>
-          <select v-model="profileForm.gender" required class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <label class="block text-sm font-medium text-slate-600 mb-1">Gender <span class="text-red-500">*</span></label>
+          <select v-model="profileForm.gender" required class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400">
             <option value="" disabled>
               Select…
             </option>
@@ -291,19 +291,19 @@ async function saveProfile() {
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Date of Birth <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Date of Birth <span class="text-red-500">*</span></label>
           <input
             v-model="profileForm.date_of_birth"
             type="date"
             required
-            class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
           >
         </div>
       </div>
 
       <div class="mt-6">
         <button
-          class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+          class="w-full px-6 py-3 bg-navy-500 hover:bg-navy-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
           :disabled="loading"
           @click="saveProfile()"
         >
@@ -331,36 +331,36 @@ async function saveProfile() {
     <!-- Login / Signup -->
     <div v-else class="max-w-sm w-full">
       <!-- Tabs -->
-      <div class="flex gap-1 bg-gray-800 rounded-xl p-1 mb-6">
+      <div class="flex gap-1 bg-slate-100 rounded-xl p-1 mb-6">
         <button
           class="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
-          :class="view === 'login' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'"
+          :class="view === 'login' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
           @click="view = 'login'"
         >
           Sign In
         </button>
         <button
           class="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
-          :class="view === 'signup' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'"
+          :class="view === 'signup' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
           @click="view = 'signup'"
         >
           Create Account
         </button>
       </div>
 
-      <h2 class="text-2xl font-bold text-white mb-1">
+      <h2 class="text-2xl font-bold text-slate-800 mb-1">
         {{ view === 'login' ? 'Welcome back' : 'Create your account' }}
       </h2>
-      <p class="text-gray-400 mb-1">
+      <p class="text-slate-500 mb-1">
         {{ view === 'login' ? 'Sign in to book your appointment' : 'Sign up to start booking' }}
       </p>
-      <p v-if="view === 'signup'" class="text-sm text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 mb-4">
+      <p v-if="view === 'signup'" class="text-sm text-navy-500 bg-navy-50 border border-navy-100 rounded-lg px-3 py-2 mb-4">
         First time booking? Create an account and your details will be saved — no need to fill them in again next time. 🎉
       </p>
 
       <!-- Google button -->
       <button
-        class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-gray-100 text-gray-800 font-medium rounded-lg transition-colors mb-4 disabled:opacity-60"
+        class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-lg transition-colors mb-4 disabled:opacity-60"
         :disabled="loading"
         @click="googleSignIn"
       >
@@ -374,38 +374,38 @@ async function saveProfile() {
       </button>
 
       <div class="flex items-center gap-3 mb-4">
-        <div class="flex-1 h-px bg-gray-700" />
-        <span class="text-gray-500 text-sm">or</span>
-        <div class="flex-1 h-px bg-gray-700" />
+        <div class="flex-1 h-px bg-slate-200" />
+        <span class="text-slate-400 text-sm">or</span>
+        <div class="flex-1 h-px bg-slate-200" />
       </div>
 
       <!-- Login form -->
       <form v-if="view === 'login'" class="space-y-4" @submit.prevent="emailSignIn">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Email</label>
           <input
             v-model="loginForm.email"
             type="email"
             placeholder="you@example.com"
             autocomplete="email"
             required
-            class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
           >
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Password</label>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
           <input
             v-model="loginForm.password"
             type="password"
             placeholder="••••••••"
             autocomplete="current-password"
             required
-            class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
           >
         </div>
         <button
           type="submit"
-          class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+          class="w-full px-6 py-3 bg-navy-500 hover:bg-navy-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           :disabled="loading"
         >
           <svg
@@ -431,53 +431,53 @@ async function saveProfile() {
       <!-- Signup form -->
       <form v-else class="space-y-4" @submit.prevent="emailSignUp">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Full Name <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Full Name <span class="text-red-500">*</span></label>
           <input
             v-model="signupForm.full_name"
             type="text"
             placeholder="Jane Doe"
             autocomplete="name"
             required
-            class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
           >
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Email <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Email <span class="text-red-500">*</span></label>
           <input
             v-model="signupForm.email"
             type="email"
             placeholder="you@example.com"
             autocomplete="email"
             required
-            class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
           >
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Password <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Password <span class="text-red-500">*</span></label>
           <input
             v-model="signupForm.password"
             type="password"
             placeholder="Min. 6 characters"
             autocomplete="new-password"
             required
-            class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
           >
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Phone Number <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-slate-600 mb-1">Phone Number <span class="text-red-500">*</span></label>
           <input
             v-model="signupForm.phone_number"
             type="tel"
             placeholder="+1 234 567 8900"
             autocomplete="tel"
             required
-            class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400"
           >
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Gender <span class="text-red-400">*</span></label>
-            <select v-model="signupForm.gender" required class="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            <label class="block text-sm font-medium text-slate-600 mb-1">Gender <span class="text-red-500">*</span></label>
+            <select v-model="signupForm.gender" required class="w-full px-3 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400 text-sm">
               <option value="" disabled>
                 Select…
               </option>
@@ -493,18 +493,18 @@ async function saveProfile() {
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Date of Birth <span class="text-red-400">*</span></label>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Date of Birth <span class="text-red-500">*</span></label>
             <input
               v-model="signupForm.date_of_birth"
               type="date"
               required
-              class="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              class="w-full px-3 py-3 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-navy-400 text-sm"
             >
           </div>
         </div>
         <button
           type="submit"
-          class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+          class="w-full px-6 py-3 bg-navy-500 hover:bg-navy-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           :disabled="loading"
         >
           <svg
