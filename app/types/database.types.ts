@@ -6,6 +6,7 @@ export type Database = {
           id: string
           created_at: string
           name: string | null
+          slug: string | null
           description: string | null
           phone: string | null
           email: string | null
@@ -13,7 +14,7 @@ export type Database = {
           logo_url: string | null
           opening_time: string // "HH:MM" 24h format
           closing_time: string // "HH:MM" 24h format
-          open_days: number[]  // 0=Sun, 1=Mon, ..., 6=Sat
+          open_days: number[] // 0=Sun, 1=Mon, ..., 6=Sat
         }
         Insert: {
           id?: string

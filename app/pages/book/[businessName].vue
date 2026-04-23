@@ -1,3 +1,5 @@
+<!-- eslint-disable @typescript-eslint/no-explicit-any -->
+<!-- eslint-disable no-empty -->
 <script setup lang="ts">
 import { useBookingFlow } from '~/composables/useBookingFlow'
 import StepServices from '~/components/booking/StepServices.vue'
@@ -14,15 +16,21 @@ definePageMeta({
 const route = useRoute()
 const supabase = useSupabaseClient()
 const toast = useToast()
-const clientProfileId = route.params.id as string
+const businessNameParam = route.params.businessName as string
 
-// Validate that we have a valid UUID
-if (!clientProfileId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientProfileId)) {
-  throw createError({
-    statusCode: 400,
-    message: 'Invalid client profile ID'
+// Resolve slug → clientProfileId + businessName via server API (uses service key)
+const { data: resolvedBusiness } = await useAsyncData('resolve-business', async () => {
+  return await $fetch<{ clientProfileId: string, businessName: string }>('/api/public-business-name', {
+    query: { slug: businessNameParam }
   })
+})
+
+if (!resolvedBusiness.value?.clientProfileId) {
+  throw createError({ statusCode: 404, message: 'Business not found' })
 }
+
+// const clientProfileId = resolvedBusiness.value.clientProfileId
+const businessInfo = computed(() => resolvedBusiness.value?.businessName ?? null)
 
 const {
   currentStep,
@@ -36,16 +44,7 @@ const {
 } = useBookingFlow()
 
 // Set the client profile ID in the booking state
-bookingState.value.clientProfileId = clientProfileId
-
-// Fetch business name for the header
-const { data: businessInfo } = await useAsyncData('business-info', async () => {
-  const res = await $fetch<{ name: string | null }>('/api/public-business-name', {
-    query: { client_profile_id: clientProfileId }
-  })
-  console.log('Business name result:', res)
-  return res?.name ?? null
-})
+bookingState.value.clientProfileId = resolvedBusiness.value.clientProfileId
 
 // Auth state
 const checkingAuth = ref(true)
@@ -60,6 +59,7 @@ onMounted(async () => {
     // New Google users (no role yet) will be handled by StepAuth which
     // tags them and creates the customer record.
     if (session && session.user?.user_metadata?.role === 'customer') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res: any = await $fetch('/api/customer-auth', {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -146,15 +146,15 @@ async function submitBooking() {
   }
 }
 
-const handleBookingComplete = () => {
-  showSuccess.value = true
-}
+// const handleBookingComplete = () => {
+//   showSuccess.value = true
+// }
 
 const startNewBooking = () => {
   showSuccess.value = false
   resetBooking()
   // Re-set the client profile ID after reset
-  bookingState.value.clientProfileId = clientProfileId
+  bookingState.value.clientProfileId = resolvedBusiness.value?.clientProfileId as string | null
 }
 </script>
 
