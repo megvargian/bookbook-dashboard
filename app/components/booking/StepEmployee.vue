@@ -65,14 +65,38 @@ const availableEmployees = computed(() => {
   return availableEmployeesResponse.value?.employees || []
 })
 
+// Track which services used "Anyone" mode (for UI card highlight only)
+const anyoneServiceIds = ref<Set<string>>(new Set())
+
 const selectEmployee = (employeeId: string, employeeName: string) => {
   if (!activeService.value) return
+  // Clear anyone mode for this service
+  anyoneServiceIds.value.delete(activeService.value.serviceId)
+  updateServiceBooking(activeService.value.serviceId, { employeeId, employeeName })
+}
 
+const selectAnyone = () => {
+  if (!activeService.value || !availableEmployees.value.length) return
+  const first = availableEmployees.value[0]
+  const realName = first.full_name || `${first.first_name || ''} ${first.last_name || ''}`.trim()
+  // Mark this service as anyone-mode for card UI, but store real employee name
+  anyoneServiceIds.value = new Set([...anyoneServiceIds.value, activeService.value.serviceId])
   updateServiceBooking(activeService.value.serviceId, {
-    employeeId,
-    employeeName
+    employeeId: first.id,
+    employeeName: realName
   })
 }
+
+const isAnyoneSelected = computed(() =>
+  !!activeService.value && anyoneServiceIds.value.has(activeService.value.serviceId)
+)
+
+// Pre-select "Anyone" when employees load (if nothing selected yet)
+watch(availableEmployees, (employees) => {
+  if (employees && employees.length > 0 && !activeService.value?.employeeId) {
+    selectAnyone()
+  }
+}, { immediate: true })
 
 // Navigation between services
 const goToService = (index: number) => {
@@ -83,51 +107,13 @@ const goToService = (index: number) => {
 
 // Check if an employee is selected for the current service
 const isEmployeeSelected = (employeeId: string) => {
-  return activeService.value?.employeeId === employeeId
+  return activeService.value?.employeeId === employeeId && !isAnyoneSelected.value
 }
 
 // Check if service has both date and time selected
 const isServiceConfigured = (serviceBooking: any) => {
   return serviceBooking.date && serviceBooking.time
 }
-
-// Skip functionality - randomly select available employees
-const skipSelection = () => {
-  if (!availableEmployees.value || availableEmployees.value.length === 0) return
-
-  const randomEmployee = availableEmployees.value[Math.floor(Math.random() * availableEmployees.value.length)]
-  selectEmployee(randomEmployee.id, randomEmployee.full_name || `${randomEmployee.first_name || ''} ${randomEmployee.last_name || ''}`.trim())
-}
-
-// Skip all unselected services
-const skipAllUnselected = () => {
-  bookingState.value.serviceBookings.forEach((service, index) => {
-    if (!service.employeeId && service.date && service.time) {
-      activeServiceIndex.value = index
-      nextTick(() => {
-        if (availableEmployees.value && availableEmployees.value.length > 0) {
-          const randomEmployee = availableEmployees.value[Math.floor(Math.random() * availableEmployees.value.length)]
-          selectEmployee(randomEmployee.id, randomEmployee.full_name || `${randomEmployee.first_name || ''} ${randomEmployee.last_name || ''}`.trim())
-        }
-      })
-    }
-  })
-}
-
-// Initialize with first service
-onMounted(() => {
-  console.log('StepEmployee mounted, serviceBookings:', bookingState.value.serviceBookings)
-  if (bookingState.value.serviceBookings.length > 0) {
-    goToService(0)
-  }
-})
-
-// Debug available employees
-watchEffect(() => {
-  console.log('Available employees response:', availableEmployeesResponse.value)
-  console.log('Available employees count:', availableEmployees.value?.length || 0)
-  console.log('Pending:', pending.value)
-})
 </script>
 
 <template>
@@ -249,29 +235,39 @@ watchEffect(() => {
       </div>
 
       <div v-else>
-        <!-- Skip Button -->
-        <div class="flex justify-between items-center mb-6">
-          <h4 class="text-lg font-semibold text-white">
-            Available Employees
-          </h4>
-          <div class="flex gap-2">
-            <button
-              class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium"
-              @click="skipSelection"
-            >
-              🎲 Skip - Random Select
-            </button>
-            <button
-              v-if="bookingState.serviceBookings.length > 1"
-              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium"
-              @click="skipAllUnselected"
-            >
-              🎲 Skip All Services
-            </button>
-          </div>
-        </div>
+        <h4 class="text-lg font-semibold text-white mb-6">
+          Available Employees
+        </h4>
 
         <div class="employees-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Anyone card — always first, pre-selected -->
+          <div
+            class="employee-card p-6 rounded-lg border-2 transition-all cursor-pointer"
+            :class="isAnyoneSelected
+              ? 'border-blue-500 bg-blue-500/10'
+              : 'border-gray-700 bg-gray-800 hover:border-gray-600'"
+            @click="selectAnyone()"
+          >
+            <div class="flex flex-col items-center text-center">
+              <div class="w-20 h-20 rounded-full bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-white text-3xl mb-4">
+                🎲
+              </div>
+              <h3 class="text-lg font-semibold text-white mb-1">
+                Anyone
+              </h3>
+              <p class="text-gray-400 text-sm mb-3">
+                Let us assign the best available employee
+              </p>
+              <div v-if="isAnyoneSelected" class="mt-1">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-500 text-white">
+                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Selected
+                </span>
+              </div>
+            </div>
+          </div>
           <div
             v-for="employee in availableEmployees"
             :key="employee.id"
