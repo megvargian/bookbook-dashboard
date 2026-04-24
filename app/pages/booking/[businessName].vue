@@ -144,7 +144,7 @@ const startNewBooking = () => {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-2xl font-bold text-navy-500">
+            <h1 class="text-lg sm:text-xl md:text-2xl font-bold text-navy-500">
               Book Your Appointment<template v-if="businessInfo">
                 at {{ businessInfo }}
               </template>
@@ -303,8 +303,7 @@ const startNewBooking = () => {
             <div
               v-for="(title, index) in stepTitles"
               :key="index"
-              class="flex flex-col items-center"
-              :class="{ 'flex-1': index < stepTitles.length - 1 }"
+              class="flex flex-col items-center flex-1"
             >
               <div
                 class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all font-semibold text-sm"
