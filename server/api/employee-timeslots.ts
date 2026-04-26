@@ -32,10 +32,10 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'employee_id and date are required' })
   }
 
-  // 1. Fetch employee details (shift hours + working days)
+  // 1. Fetch employee details (shift hours + working days + days off)
   const { data: employee, error: empError } = await supabase
     .from('employee')
-    .select('id, start_working_hour, end_working_hours, working_week_days')
+    .select('id, start_working_hour, end_working_hours, working_week_days, days_off')
     .eq('id', employeeId)
     .single()
 
@@ -59,7 +59,12 @@ export default eventHandler(async (event) => {
     return { slots: [], reason: 'Employee does not work on this day' }
   }
 
-  // 3. Determine shift boundaries (default 09:00–18:00)
+  // 3. Check if employee has a day off on the requested date
+  if (employee.days_off && Array.isArray(employee.days_off) && employee.days_off.includes(date)) {
+    return { slots: [], reason: 'Employee has a day off on this date' }
+  }
+
+  // 4. Determine shift boundaries (default 09:00–18:00)
   const parseTime = (t: string | null | undefined, fallback: string) => {
     const str = t || fallback
     const [h, m] = str.split(':').map(Number)
@@ -70,7 +75,7 @@ export default eventHandler(async (event) => {
   const shiftEnd = parseTime(employee.end_working_hours, '18:00')
   const durationMinutes = Math.ceil(durationSeconds / 60)
 
-  // 4. Fetch existing bookings for this employee on this date
+  // 5. Fetch existing bookings for this employee on this date
   const { data: existingBookings } = await supabase
     .from('booking')
     .select('start_time, end_time')
@@ -87,7 +92,7 @@ export default eventHandler(async (event) => {
     }
   })
 
-  // 5. Generate slots every `intervalMinutes` within shift
+  // 6. Generate slots every `intervalMinutes` within shift
   const slots: { time: string; available: boolean; reason?: string }[] = []
 
   for (let t = shiftStart; t + durationMinutes <= shiftEnd; t += intervalMinutes) {

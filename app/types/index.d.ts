@@ -53,6 +53,7 @@ export interface Employee {
   end_working_hours?: string
   working_week_days?: string | string[]
   profile_picture?: string
+  days_off?: string[]
 }
 
 export interface Stat {

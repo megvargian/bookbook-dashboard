@@ -102,6 +102,10 @@ const newEmployee = ref<{
 
 const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
+// Days off management
+const editDaysOff = ref<string[]>([])
+const selectedDate = ref('')
+
 const editEmployee = ref<{
   full_name: string
   email: string
@@ -121,6 +125,36 @@ const editEmployee = ref<{
 const editWorkingDays = ref<string[]>([])
 const profilePicturePreview = ref('')
 const profilePictureUploading = ref(false)
+
+// Helper functions for days off management
+function addDayOff() {
+  if (selectedDate.value && !editDaysOff.value.includes(selectedDate.value)) {
+    editDaysOff.value.push(selectedDate.value)
+    editDaysOff.value.sort() // Keep dates sorted
+    selectedDate.value = ''
+  }
+}
+
+function removeDayOff(date: string) {
+  const index = editDaysOff.value.indexOf(date)
+  if (index > -1) {
+    editDaysOff.value.splice(index, 1)
+  }
+}
+
+function formatDisplayDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    weekday: 'short',
+    year: 'numeric', 
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+// Get minimum date for date picker (today)
+const minDate = computed(() => {
+  return new Date().toISOString().split('T')[0]
+})
 
 async function handleProfilePictureChange(event: Event) {
   const input = event.target as HTMLInputElement
@@ -328,6 +362,9 @@ async function openEditModal(employee: Employee) {
     : employee.working_week_days
       ? employee.working_week_days.split(',').map((s: string) => s.trim()).filter(Boolean)
       : []
+  
+  // Load days off data
+  editDaysOff.value = Array.isArray(employee.days_off) ? [...employee.days_off] : []
 
   // Load current services for this employee
   try {
@@ -371,7 +408,8 @@ async function updateEmployee() {
       start_working_hour: editEmployee.value.start_working_hour,
       end_working_hours: editEmployee.value.end_working_hours,
       working_week_days: editWorkingDays.value,
-      profile_picture: editEmployee.value.profile_picture
+      profile_picture: editEmployee.value.profile_picture,
+      days_off: editDaysOff.value
     }
 
     const { error } = await supabase
@@ -397,6 +435,8 @@ async function updateEmployee() {
     editingEmployee.value = null
     editSelectedServices.value = []
     editWorkingDays.value = []
+    editDaysOff.value = []
+    selectedDate.value = ''
     profilePicturePreview.value = ''
     await refreshEmployees()
   } catch (error) {
@@ -729,6 +769,54 @@ async function removeEmployee(employeeId: string) {
           <p v-else class="text-sm text-slate-400">
             No services available
           </p>
+        </div>
+
+        <!-- Days Off -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-2">Days Off</label>
+          <div class="space-y-3">
+            <!-- Add new day off -->
+            <div class="flex gap-2">
+              <input
+                v-model="selectedDate"
+                type="date"
+                :min="minDate"
+                class="flex-1 px-3 py-2 border border-slate-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm text-slate-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-navy-500"
+                placeholder="Select date"
+              >
+              <button
+                type="button"
+                :disabled="!selectedDate || editDaysOff.includes(selectedDate)"
+                class="px-4 py-2 text-sm font-medium bg-navy-500 hover:bg-navy-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-all flex items-center gap-1"
+                @click="addDayOff"
+              >
+                <UIcon name="i-lucide-plus" class="w-4 h-4" />
+                Add
+              </button>
+            </div>
+            
+            <!-- Current days off -->
+            <div v-if="editDaysOff.length > 0" class="flex flex-wrap gap-2">
+              <div
+                v-for="date in editDaysOff"
+                :key="date"
+                class="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm rounded-full border border-red-200 dark:border-red-800"
+              >
+                <span>{{ formatDisplayDate(date) }}</span>
+                <button
+                  type="button"
+                  class="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+                  @click="removeDayOff(date)"
+                >
+                  <UIcon name="i-lucide-x" class="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+            
+            <p v-else class="text-sm text-slate-400 italic">
+              No days off scheduled
+            </p>
+          </div>
         </div>
       </div>
 

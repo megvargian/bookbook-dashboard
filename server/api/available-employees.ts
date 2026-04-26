@@ -153,7 +153,13 @@ export default eventHandler(async (event) => {
           }
         }
 
-        // 3. Booking time window must fit within employee shift hours
+        // 3. Must not have a scheduled day off on the booking date
+        if (emp.days_off && Array.isArray(emp.days_off) && emp.days_off.includes(date)) {
+          console.log(`Employee ${emp.id} has a day off on ${date}`)
+          return false
+        }
+
+        // 4. Booking time window must fit within employee shift hours
         if (emp.start_working_hour && emp.end_working_hours) {
           const [shiftStartH, shiftStartM] = emp.start_working_hour.split(':').map(Number)
           const [shiftEndH, shiftEndM] = emp.end_working_hours.split(':').map(Number)
