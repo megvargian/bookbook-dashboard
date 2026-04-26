@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { sendBookingConfirmationToCustomer, sendBookingNotificationToAdmin } from '../utils/email'
-import { sendCustomerConfirmationWhatsApp } from '../utils/whatsapp'
+// import { sendCustomerConfirmationWhatsApp } from '../utils/whatsapp'
 
 // Schema for booking creation from public booking page
 const createBookingSchema = z.object({
@@ -64,17 +64,17 @@ export default defineEventHandler(async (event) => {
       .single()
 
     // Get admin WhatsApp number and business name from client_business
-    let businessPhone: string | null = null
-    let businessName: string | null = null
-    if (clientProfile?.client_business_id) {
-      const { data: clientBusiness } = await supabase
-        .from('client_business')
-        .select('phone_number, name')
-        .eq('id', clientProfile.client_business_id)
-        .single()
-      businessPhone = clientBusiness?.phone_number ?? null
-      businessName = clientBusiness?.name ?? null
-    }
+    // let businessPhone: string | null = null
+    // let businessName: string | null = null
+    // if (clientProfile?.client_business_id) {
+    //   const { data: clientBusiness } = await supabase
+    //     .from('client_business')
+    //     .select('phone_number, name')
+    //     .eq('id', clientProfile.client_business_id)
+    //     .single()
+    //   businessPhone = clientBusiness?.phone_number ?? null
+    //   businessName = clientBusiness?.name ?? null
+    // }
 
     if (clientProfileError || !clientProfile || !clientProfile.client_business_id) {
       throw createError({
@@ -199,8 +199,8 @@ export default defineEventHandler(async (event) => {
     }
 
     // WhatsApp notifications (awaited — fire-and-forget is killed by serverless before completion)
-    const adminPhone = businessPhone || config.adminWhatsappPhone as string
-    await sendCustomerConfirmationWhatsApp(booking, businessName ?? undefined, adminPhone)
+    // const adminPhone = businessPhone || config.adminWhatsappPhone as string
+    // await sendCustomerConfirmationWhatsApp(booking, businessName ?? undefined, adminPhone)
 
     if (emailPromises.length > 0) {
       console.log(`[Booking] Executing ${emailPromises.length} email notifications...`)

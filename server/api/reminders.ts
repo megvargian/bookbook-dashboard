@@ -15,7 +15,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { sendReminderWhatsApp } from '../utils/whatsapp'
+// import { sendReminderWhatsApp } from '../utils/whatsapp'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -70,7 +70,7 @@ export default defineEventHandler(async (event) => {
   // ── Send reminders and mark as sent ─────────────────────────────────────────
   const results = await Promise.allSettled(
     bookings.map(async (booking) => {
-      await sendReminderWhatsApp(booking)
+      // await sendReminderWhatsApp(booking)
 
       // Mark reminder_sent = true regardless of WhatsApp result
       // (prevents duplicate reminders even if WhatsApp failed)
