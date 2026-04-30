@@ -45,13 +45,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/login')
   }
 
-  // Block customer-role users from accessing the dashboard
+  // Block customer-role users from accessing the dashboard (but allow booking routes and auth callback)
   if (user.value?.user_metadata?.role === 'customer' && !isBookingRoute && to.path !== '/login' && to.path !== '/auth/callback') {
     return navigateTo('/login')
   }
 
-  // If user is authenticated and trying to access auth pages (but allow booking pages and callback)
+  // If user is authenticated and trying to access auth pages
+  // Allow customers on auth callback (they'll be redirected back to booking)
+  // Allow admin users to access dashboard, redirect from public auth pages
   if (user.value && publicRoutes.includes(to.path) && to.path !== '/book' && !isBookingRoute && to.path !== '/auth/callback') {
-    return navigateTo('/')
+    // Don't redirect customers from auth/callback - let them complete the booking flow
+    if (user.value?.user_metadata?.role !== 'customer') {
+      return navigateTo('/')
+    }
   }
 })

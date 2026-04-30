@@ -98,15 +98,25 @@ async function processUser(initialToken: string, user: any) {
 async function googleSignIn() {
   loading.value = true
   try {
-    // Store current booking URL so the callback page can return here after auth
+    // Store current booking URL and step information
     if (import.meta.client) {
       localStorage.setItem('bookingReturnUrl', window.location.href)
+
+      // Also store the current step and booking state if available
+      const route = useRoute()
+      if (route.path.includes('/booking/')) {
+        const currentStep = sessionStorage.getItem('bookingCurrentStep')
+        if (currentStep) {
+          localStorage.setItem('bookingCurrentStep', currentStep)
+        }
+      }
     }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: import.meta.client ? `${window.location.origin}/auth/callback` : undefined,
-        queryParams: { prompt: 'select_account' }
+        queryParams: { prompt: 'select_account' },
+        data: { role: 'customer' }
       }
     })
   } catch (e: any) {

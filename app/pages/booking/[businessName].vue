@@ -62,6 +62,18 @@ onMounted(async () => {
       if (res?.customer?.id) {
         bookingState.value.customerId = res.customer.id
         isAuthenticated.value = true
+
+        // Check if we need to restore the current step from OAuth return
+        if (import.meta.client) {
+          const savedStep = localStorage.getItem('bookingCurrentStep')
+          if (savedStep) {
+            const stepNumber = parseInt(savedStep)
+            if (stepNumber >= 1 && stepNumber <= 3) {
+              currentStep.value = stepNumber
+            }
+            localStorage.removeItem('bookingCurrentStep')
+          }
+        }
       }
     }
   } catch {} finally {
@@ -69,9 +81,21 @@ onMounted(async () => {
   }
 })
 
+// Watch the current step and save to sessionStorage for OAuth flow preservation
+watch(currentStep, (newStep) => {
+  if (import.meta.client && newStep) {
+    sessionStorage.setItem('bookingCurrentStep', String(newStep))
+  }
+}, { immediate: true })
+
 function onAuthComplete(customerId: string) {
   bookingState.value.customerId = customerId
   isAuthenticated.value = true
+
+  // After authentication, if user had selected services, they should proceed to step 2
+  if (bookingState.value.selectedServices.length > 0) {
+    currentStep.value = 2
+  }
 }
 
 const stepTitles = ['Choose Services', 'Choose Employee', 'Select Date & Time']
