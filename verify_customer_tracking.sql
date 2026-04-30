@@ -21,7 +21,7 @@ LEFT JOIN (
   SELECT
     customer_id,
     COUNT(*) as actual_visits,
-    COALESCE(SUM(total_price), 0) as actual_spent
+    COALESCE(SUM(total_price::numeric), 0) as actual_spent
   FROM booking
   WHERE status IN ('confirmed', 'completed')
   GROUP BY customer_id
@@ -43,7 +43,7 @@ LEFT JOIN (
   SELECT
     customer_id,
     COUNT(*) as actual_visits,
-    COALESCE(SUM(total_price), 0) as actual_spent
+    COALESCE(SUM(total_price::numeric), 0) as actual_spent
   FROM booking
   WHERE status IN ('confirmed', 'completed')
   GROUP BY customer_id
