@@ -41,7 +41,7 @@ onMounted(() => {
       // For customers (booking flow), ensure they have proper metadata
       if (returnTo.includes('/booking/') || returnTo.includes('/book/')) {
         console.log('[auth/callback] Booking page return detected, ensuring customer role')
-        
+
         // Ensure user has customer role - fallback for OAuth flows
         if (!session.user?.user_metadata?.role) {
           try {
@@ -51,7 +51,7 @@ onMounted(() => {
             console.warn('[auth/callback] Failed to set customer role:', error)
           }
         }
-        
+
         // Set up customer auth for booking
         try {
           await $fetch('/api/customer-auth', {

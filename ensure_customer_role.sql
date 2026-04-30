@@ -12,7 +12,7 @@ BEGIN
   IF NEW.raw_user_meta_data IS NULL OR NOT (NEW.raw_user_meta_data ? 'role') THEN
     NEW.raw_user_meta_data = COALESCE(NEW.raw_user_meta_data, '{}'::jsonb) || '{"role": "customer"}'::jsonb;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -26,11 +26,11 @@ CREATE TRIGGER trigger_set_default_customer_role
 
 -- Update existing users who don't have a role set to be 'customer'
 -- (Only run this once during setup)
-UPDATE auth.users 
-SET raw_user_meta_data = 
+UPDATE auth.users
+SET raw_user_meta_data =
   COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "customer"}'::jsonb
-WHERE 
-  raw_user_meta_data IS NULL 
+WHERE
+  raw_user_meta_data IS NULL
   OR NOT (raw_user_meta_data ? 'role');
 
 -- Optional: Function to manually set user role if needed
@@ -41,12 +41,12 @@ SECURITY DEFINER
 AS $$
 BEGIN
   -- Update the user's metadata with the role
-  UPDATE auth.users 
-  SET raw_user_meta_data = 
-    COALESCE(raw_user_meta_data, '{}'::jsonb) || 
+  UPDATE auth.users
+  SET raw_user_meta_data =
+    COALESCE(raw_user_meta_data, '{}'::jsonb) ||
     jsonb_build_object('role', role_param)
   WHERE id = user_id_param;
-  
+
   -- Check if the update was successful
   IF FOUND THEN
     RETURN json_build_object(
