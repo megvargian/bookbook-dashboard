@@ -515,6 +515,17 @@ export default eventHandler(async (event) => {
           finalUpdateData.total_price = updatedService.price
         }
 
+        // Get original booking data before update (for status change comparison)
+        let originalBooking = null
+        if (validatedUpdateData.status) {
+          const { data: original } = await supabase
+            .from('booking')
+            .select('status, customer_id, total_price')
+            .eq('id', bookingId)
+            .single()
+          originalBooking = original
+        }
+
         const { data: updatedBooking, error: updateError } = await supabase
           .from('booking')
           .update(finalUpdateData)
@@ -533,6 +544,64 @@ export default eventHandler(async (event) => {
             statusCode: 500,
             statusMessage: `Failed to update booking: ${updateError.message}`
           })
+        }
+
+        // Handle customer stats updates for status changes
+        if (validatedUpdateData.status && updatedBooking && originalBooking) {
+          try {
+            if (originalBooking.status !== validatedUpdateData.status) {
+              console.log('[Booking] Status changed from', originalBooking.status, 'to', validatedUpdateData.status)
+
+              const oldStatus = originalBooking.status
+              const newStatus = validatedUpdateData.status
+              const customerId = updatedBooking.customer_id
+              const bookingPrice = updatedBooking.total_price || 0
+
+              // Handle stats based on status transitions
+              if (oldStatus === 'cancelled' && (newStatus === 'confirmed' || newStatus === 'completed')) {
+                // Booking reactivated - increment stats
+                const { data: currentStats } = await supabase
+                  .from('customer')
+                  .select('total_visits, total_spent')
+                  .eq('id', customerId)
+                  .single()
+
+                if (currentStats) {
+                  await supabase
+                    .from('customer')
+                    .update({
+                      total_visits: (currentStats.total_visits || 0) + 1,
+                      total_spent: (currentStats.total_spent || 0) + parseFloat(bookingPrice.toString())
+                    })
+                    .eq('id', customerId)
+
+                  console.log('[Booking] Incremented customer stats for reactivated booking')
+                }
+              } else if ((oldStatus === 'confirmed' || oldStatus === 'completed') && newStatus === 'cancelled') {
+                // Booking cancelled - decrement stats
+                const { data: currentStats } = await supabase
+                  .from('customer')
+                  .select('total_visits, total_spent')
+                  .eq('id', customerId)
+                  .single()
+
+                if (currentStats) {
+                  await supabase
+                    .from('customer')
+                    .update({
+                      total_visits: Math.max((currentStats.total_visits || 0) - 1, 0),
+                      total_spent: Math.max((currentStats.total_spent || 0) - parseFloat(bookingPrice.toString()), 0)
+                    })
+                    .eq('id', customerId)
+
+                  console.log('[Booking] Decremented customer stats for cancelled booking')
+                }
+              }
+            }
+          } catch (statsError) {
+            console.error('Error updating customer stats on status change:', statsError)
+            // Don't fail the booking update if stats update fails
+          }
         }
 
         // Insert notification if the status changed
