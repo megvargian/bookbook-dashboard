@@ -174,6 +174,30 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Update customer stats for new confirmed booking
+    try {
+      const { data: currentStats } = await supabase
+        .from('customer')
+        .select('total_visits, total_spent')
+        .eq('id', customer_id)
+        .single()
+
+      if (currentStats) {
+        await supabase
+          .from('customer')
+          .update({
+            total_visits: (currentStats.total_visits || 0) + 1,
+            total_spent: (currentStats.total_spent || 0) + parseFloat(service.price.toString())
+          })
+          .eq('id', customer_id)
+
+        console.log('[Public Booking] ✅ Updated customer stats for new confirmed booking')
+      }
+    } catch (statsError) {
+      console.error('Error updating customer stats on public booking creation:', statsError)
+      // Don't fail the booking creation if stats update fails
+    }
+
     // Send email notifications (fire-and-forget — don't fail booking if email fails)
     console.log('[Booking] ==================== EMAIL NOTIFICATION PHASE ====================')
     console.log('[Booking] Preparing email notifications for booking:', booking.id)

@@ -386,6 +386,30 @@ export default eventHandler(async (event) => {
           })
         }
 
+        // Update customer stats for new confirmed booking
+        try {
+          const { data: currentStats } = await supabase
+            .from('customer')
+            .select('total_visits, total_spent')
+            .eq('id', validatedData.customer_id)
+            .single()
+
+          if (currentStats) {
+            await supabase
+              .from('customer')
+              .update({
+                total_visits: (currentStats.total_visits || 0) + 1,
+                total_spent: (currentStats.total_spent || 0) + parseFloat(service.price.toString())
+              })
+              .eq('id', validatedData.customer_id)
+
+            console.log('[Booking] ✅ Updated customer stats for new confirmed booking')
+          }
+        } catch (statsError) {
+          console.error('Error updating customer stats on booking creation:', statsError)
+          // Don't fail the booking creation if stats update fails
+        }
+
         // Insert notification for the admin about the new booking
         try {
           const customerName = newBooking?.customer?.full_name || 'A customer'
@@ -555,46 +579,76 @@ export default eventHandler(async (event) => {
               const oldStatus = originalBooking.status
               const newStatus = validatedUpdateData.status
               const customerId = updatedBooking.customer_id
-              const bookingPrice = updatedBooking.total_price || 0
+              const bookingPrice = parseFloat((updatedBooking.total_price || 0).toString())
 
-              // Handle stats based on status transitions
-              if (oldStatus === 'cancelled' && (newStatus === 'confirmed' || newStatus === 'completed')) {
-                // Booking reactivated - increment stats
-                const { data: currentStats } = await supabase
-                  .from('customer')
-                  .select('total_visits, total_spent')
-                  .eq('id', customerId)
-                  .single()
+              // Get current customer stats
+              const { data: currentStats } = await supabase
+                .from('customer')
+                .select('total_visits, total_spent')
+                .eq('id', customerId)
+                .single()
 
-                if (currentStats) {
-                  await supabase
-                    .from('customer')
-                    .update({
-                      total_visits: (currentStats.total_visits || 0) + 1,
-                      total_spent: (currentStats.total_spent || 0) + parseFloat(bookingPrice.toString())
-                    })
-                    .eq('id', customerId)
+              if (currentStats) {
+                let visitsChange = 0
+                let spentChange = 0
 
-                  console.log('[Booking] Incremented customer stats for reactivated booking')
+                // Define active statuses (count towards customer stats)
+                const activeStatuses = ['confirmed', 'completed']
+                const wasActive = activeStatuses.includes(oldStatus)
+                const isActive = activeStatuses.includes(newStatus)
+
+                // Specifically handle completion (Done status)
+                if (newStatus === 'completed' && oldStatus !== 'completed') {
+                  if (!wasActive) {
+                    // First time becoming active (pending -> completed or similar)
+                    visitsChange = 1
+                    spentChange = bookingPrice
+                    console.log('[Booking] ✅ Booking marked as DONE - incrementing stats')
+                  }
+                  // If it was already active (confirmed -> completed), no change needed
+                } else if (oldStatus === 'completed' && newStatus !== 'completed') {
+                  if (!isActive) {
+                    // Completed booking becoming inactive (completed -> cancelled)
+                    visitsChange = -1
+                    spentChange = -bookingPrice
+                    console.log('[Booking] ❌ Completed booking cancelled - decrementing stats')
+                  }
+                  // If still active (completed -> confirmed), no change needed
+                } else if (!wasActive && isActive) {
+                  // Becoming active from inactive (cancelled -> confirmed, pending -> confirmed)
+                  visitsChange = 1
+                  spentChange = bookingPrice
+                  console.log('[Booking] ✅ Inactive booking became active - incrementing stats')
+                } else if (wasActive && !isActive) {
+                  // Becoming inactive from active (confirmed -> cancelled)
+                  visitsChange = -1
+                  spentChange = -bookingPrice
+                  console.log('[Booking] ❌ Active booking became inactive - decrementing stats')
                 }
-              } else if ((oldStatus === 'confirmed' || oldStatus === 'completed') && newStatus === 'cancelled') {
-                // Booking cancelled - decrement stats
-                const { data: currentStats } = await supabase
-                  .from('customer')
-                  .select('total_visits, total_spent')
-                  .eq('id', customerId)
-                  .single()
 
-                if (currentStats) {
+                // Apply the changes if any
+                if (visitsChange !== 0 || spentChange !== 0) {
+                  const newVisits = Math.max((currentStats.total_visits || 0) + visitsChange, 0)
+                  const newSpent = Math.max((currentStats.total_spent || 0) + spentChange, 0)
+
                   await supabase
                     .from('customer')
                     .update({
-                      total_visits: Math.max((currentStats.total_visits || 0) - 1, 0),
-                      total_spent: Math.max((currentStats.total_spent || 0) - parseFloat(bookingPrice.toString()), 0)
+                      total_visits: newVisits,
+                      total_spent: newSpent
                     })
                     .eq('id', customerId)
 
-                  console.log('[Booking] Decremented customer stats for cancelled booking')
+                  console.log('[Booking] Updated customer stats:', {
+                    customerId,
+                    oldVisits: currentStats.total_visits || 0,
+                    newVisits,
+                    oldSpent: currentStats.total_spent || 0,
+                    newSpent,
+                    change: { visits: visitsChange, spent: spentChange }
+                  })
+                } else {
+                  console.log('[Booking] No stats change needed for this transition')
                 }
               }
             }
