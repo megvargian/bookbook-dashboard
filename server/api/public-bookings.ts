@@ -119,7 +119,97 @@ export default defineEventHandler(async (event) => {
     const startTimeISO = startDateTime.toISOString()
     const endTimeISO = endDateTime.toISOString()
 
-    // Check for booking conflicts (same employee, overlapping time)
+    // Get business hours to check if service fits within operating hours
+    const { data: businessHours, error: businessHoursError } = await supabase
+      .from('business_hours')
+      .select('day_of_week, opening_time, closing_time, is_closed')
+      .eq('client_business_id', clientProfile.client_business_id)
+
+    if (!businessHoursError && businessHours && businessHours.length > 0) {
+      const dayOfWeek = startDateTime.getUTCDay() // 0 = Sunday, 1 = Monday, etc.
+      const businessDay = businessHours.find(bh => bh.day_of_week === dayOfWeek)
+
+      if (businessDay) {
+        if (businessDay.is_closed) {
+          throw createError({
+            statusCode: 400,
+            statusMessage: 'Business is closed on this day'
+          })
+        }
+
+        // Check if service duration exceeds closing time
+        const requestedEndTime = `${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`
+
+        if (businessDay.closing_time && requestedEndTime > businessDay.closing_time) {
+          throw createError({
+            statusCode: 400,
+            statusMessage: 'Service duration exceeds business closing time. Please try an earlier time slot.'
+          })
+        }
+      }
+    }
+
+    // Get detailed booking information for slot availability checking
+    const { data: existingBookings, error: bookingsError } = await supabase
+      .from('booking')
+      .select('start_time, end_time')
+      .eq('employee_id', employee_id)
+      .eq('booking_date', booking_date)
+      .neq('status', 'cancelled')
+      .order('start_time', { ascending: true })
+
+    if (bookingsError) {
+      console.error('Error checking existing bookings:', bookingsError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to check booking availability'
+      })
+    }
+
+    // Check if the requested service duration fits in available slots
+    if (existingBookings && existingBookings.length > 0) {
+      const requestedStart = startDateTime.getTime()
+      const requestedEnd = endDateTime.getTime()
+      const serviceDurationMs = service.duration_service_in_s * 1000
+
+      // Check for basic overlap conflicts first
+      const hasOverlap = existingBookings.some(booking => {
+        const existingStart = new Date(booking.start_time).getTime()
+        const existingEnd = new Date(booking.end_time).getTime()
+        return (requestedStart < existingEnd && requestedEnd > existingStart)
+      })
+
+      if (hasOverlap) {
+        throw createError({
+          statusCode: 409,
+          statusMessage: 'This time slot is already booked'
+        })
+      }
+
+      // Find the next booking after requested start time
+      const nextBooking = existingBookings.find(booking => {
+        const existingStart = new Date(booking.start_time).getTime()
+        return existingStart > requestedStart
+      })
+
+      // Check if service duration fits before next booking
+      if (nextBooking) {
+        const nextBookingStart = new Date(nextBooking.start_time).getTime()
+        const availableTimeMs = nextBookingStart - requestedStart
+
+        if (serviceDurationMs > availableTimeMs) {
+          const availableTimeMinutes = Math.floor(availableTimeMs / (1000 * 60))
+          const requiredTimeMinutes = Math.ceil(serviceDurationMs / (1000 * 60))
+
+          throw createError({
+            statusCode: 400,
+            statusMessage: `Service duration is too long for available slot. Available: ${availableTimeMinutes} minutes, Required: ${requiredTimeMinutes} minutes. Please try another time.`
+          })
+        }
+      }
+    }
+
+    // Legacy conflict check (keeping for additional safety)
     const { data: conflicts, error: conflictError } = await supabase
       .from('booking')
       .select('id')
