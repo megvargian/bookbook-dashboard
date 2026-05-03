@@ -28,10 +28,14 @@ const { data: employees } = await useFetch<any[]>('/api/employees', { default: (
 const { data: services } = await useFetch<any[]>('/api/services', { default: () => [], headers: authHeaders })
 const { data: customers } = await useFetch<any[]>('/api/customers', { default: () => [], headers: authHeaders })
 
-// ── Filters ────────────────────────────────────────────────
+// ── Filters & Pagination ────────────────────────────────────────────────
 const searchQuery = ref('')
 const statusFilter = ref<'all' | 'pending' | 'confirmed' | 'completed' | 'cancelled'>('all')
 const dateFilter = ref('')
+
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = 10
 
 const statusTabs = [
   { key: 'all', label: 'All' },
@@ -70,6 +74,20 @@ const filteredBookings = computed(() => {
   }
 
   return list
+})
+
+// Pagination computed properties
+const totalItems = computed(() => filteredBookings.value.length)
+const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage))
+const paginatedBookings = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredBookings.value.slice(start, end)
+})
+
+// Reset to first page when filters change
+watch([searchQuery, statusFilter, dateFilter], () => {
+  currentPage.value = 1
 })
 
 // ── Helpers ────────────────────────────────────────────────
@@ -299,26 +317,26 @@ const exportCSV = () => {
         <!-- Table -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <!-- Table header -->
-          <div class="grid grid-cols-[2fr_2fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-slate-50 dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700">
+          <div class="grid grid-cols-[2fr_2fr_1.5fr_1.5fr_1fr_1fr_1.2fr] gap-4 px-6 py-3 bg-slate-50 dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 items-center">
             <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Client</span>
             <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Service</span>
             <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Employee</span>
             <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Date &amp; Time</span>
-            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Duration</span>
-            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Amount</span>
-            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Actions</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500 text-center">Duration</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500 text-right">Amount</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500 text-center">Actions</span>
           </div>
 
           <!-- Empty state -->
-          <div v-if="!filteredBookings.length" class="py-16 text-center text-slate-400 dark:text-gray-500 text-sm">
-            No appointments found.
+          <div v-if="!paginatedBookings.length" class="py-16 text-center text-slate-400 dark:text-gray-500 text-sm">
+            {{ filteredBookings.length === 0 ? 'No appointments found.' : 'No appointments on this page.' }}
           </div>
 
           <!-- Rows -->
           <div
-            v-for="booking in filteredBookings"
+            v-for="booking in paginatedBookings"
             :key="booking.id"
-            class="grid grid-cols-[2fr_2fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-4 border-b border-slate-100 dark:border-gray-800 last:border-0 hover:bg-slate-50 dark:hover:bg-gray-800/40 transition-colors"
+            class="grid grid-cols-[2fr_2fr_1.5fr_1.5fr_1fr_1fr_1.2fr] gap-4 px-6 py-4 border-b border-slate-100 dark:border-gray-800 last:border-0 hover:bg-slate-50 dark:hover:bg-gray-800/40 transition-colors items-center"
           >
             <!-- Client -->
             <div>
@@ -355,17 +373,17 @@ const exportCSV = () => {
             </div>
 
             <!-- Duration -->
-            <div class="text-sm font-medium text-blue-500 dark:text-blue-400">
+            <div class="text-sm font-medium text-blue-500 dark:text-blue-400 text-center">
               {{ getDurationMin(booking) !== null ? `${getDurationMin(booking)} min` : '—' }}
             </div>
 
             <!-- Amount -->
-            <div class="text-sm font-bold text-slate-800 dark:text-gray-100">
+            <div class="text-sm font-bold text-slate-800 dark:text-gray-100 text-right">
               ${{ booking.total_price ?? '—' }}
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center gap-1">
+            <div class="flex items-center justify-center gap-1">
               <!-- Status badge -->
               <span
                 class="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize mr-1"
@@ -389,6 +407,42 @@ const exportCSV = () => {
                 <UIcon name="i-lucide-x" class="w-3.5 h-3.5" />
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="totalPages > 1" class="flex items-center justify-between mt-4">
+          <div class="text-sm text-slate-500 dark:text-gray-400">
+            Showing {{ ((currentPage - 1) * itemsPerPage) + 1 }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} appointments
+          </div>
+          <div class="flex items-center gap-1">
+            <button
+              :disabled="currentPage <= 1"
+              class="px-3 py-2 text-sm border border-slate-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="currentPage--"
+            >
+              Previous
+            </button>
+            <span
+              v-for="page in Math.min(totalPages, 5)"
+              :key="page"
+              class="px-3 py-2 text-sm border rounded-lg cursor-pointer transition-all"
+              :class="[
+                page === currentPage
+                  ? 'bg-navy-500 text-white border-navy-500'
+                  : 'border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800'
+              ]"
+              @click="currentPage = page"
+            >
+              {{ page }}
+            </span>
+            <button
+              :disabled="currentPage >= totalPages"
+              class="px-3 py-2 text-sm border border-slate-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="currentPage++"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>

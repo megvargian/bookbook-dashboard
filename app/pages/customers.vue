@@ -111,6 +111,23 @@ const filteredCustomers = computed(() => {
   )
 })
 
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = 15
+
+const totalItems = computed(() => filteredCustomers.value.length)
+const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage))
+const paginatedCustomers = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredCustomers.value.slice(start, end)
+})
+
+// Reset to first page when search changes
+watch(searchQuery, () => {
+  currentPage.value = 1
+})
+
 // CRUD Operations
 async function addCustomer() {
   loading.value = true
@@ -344,7 +361,7 @@ function exportCSV() {
         </div>
 
         <!-- No search results -->
-        <div v-else-if="filteredCustomers.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
+        <div v-else-if="paginatedCustomers.length === 0 && filteredCustomers.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
           <UIcon name="i-lucide-search-x" class="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" />
           <p class="text-gray-500 dark:text-gray-400">No customers match your search</p>
         </div>
@@ -376,7 +393,7 @@ function exportCSV() {
             </thead>
             <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               <tr
-                v-for="customer in filteredCustomers"
+                v-for="customer in paginatedCustomers"
                 :key="customer.id"
                 class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
@@ -458,6 +475,42 @@ function exportCSV() {
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="totalPages > 1" class="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div class="text-sm text-gray-500 dark:text-gray-400">
+            Showing {{ ((currentPage - 1) * itemsPerPage) + 1 }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} customers
+          </div>
+          <div class="flex items-center gap-1">
+            <button
+              :disabled="currentPage <= 1"
+              class="px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="currentPage--"
+            >
+              Previous
+            </button>
+            <span
+              v-for="page in Math.min(totalPages, 5)"
+              :key="page"
+              class="px-3 py-2 text-sm border rounded-lg cursor-pointer transition-all"
+              :class="[
+                page === currentPage
+                  ? 'bg-navy-500 text-white border-navy-500'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              ]"
+              @click="currentPage = page"
+            >
+              {{ page }}
+            </span>
+            <button
+              :disabled="currentPage >= totalPages"
+              class="px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="currentPage++"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </template>
