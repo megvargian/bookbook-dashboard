@@ -603,7 +603,10 @@ export default eventHandler(async (event) => {
                     // First time becoming active (pending -> completed or similar)
                     visitsChange = 1
                     spentChange = bookingPrice
-                    console.log('[Booking] ✅ Booking marked as DONE - incrementing stats')
+                    console.log('[Booking] ✅ Booking marked as COMPLETED - incrementing customer stats')
+                    console.log(`[Booking] Customer ${customerId}: visits +1, spent +$${bookingPrice}`)
+                  } else {
+                    console.log('[Booking] ℹ️ Booking already active - no stats change needed for completed status')
                   }
                   // If it was already active (confirmed -> completed), no change needed
                 } else if (oldStatus === 'completed' && newStatus !== 'completed') {
@@ -641,6 +644,8 @@ export default eventHandler(async (event) => {
 
                   console.log('[Booking] Updated customer stats:', {
                     customerId,
+                    bookingId: updatedBooking.id,
+                    statusChange: `${oldStatus} → ${newStatus}`,
                     oldVisits: currentStats.total_visits || 0,
                     newVisits,
                     oldSpent: currentStats.total_spent || 0,
