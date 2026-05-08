@@ -134,7 +134,7 @@ const selectedDate = ref<Date | null>(null)
 const selectedTimeSlot = ref<string | null>(null)
 const showCreateModal = ref(false)
 const loading = ref(false)
-const viewMode = ref<'week' | 'month'>('week')
+const viewMode = ref<'week' | 'month' | 'day'>('week')
 const editingBooking = ref<Booking | null>(null)
 
 // Add hover state for better UX
@@ -404,6 +404,26 @@ const getBookingColor = (booking: Booking | CreateBookingData) => {
   }
 }
 
+// Resolved display data for the current preview booking
+const previewCustomerName = computed(() => {
+  if (!previewBooking.value?.customer_id) return ''
+  const opt = customerOptions.value.find(c => c.value === previewBooking.value?.customer_id)
+  return opt?.label || ''
+})
+
+const previewEndTime = computed(() => {
+  if (!previewBooking.value?.start_time || !previewBooking.value?.service_id) return ''
+  const svc = Array.isArray(services.value)
+    ? (services.value as any[]).find((s: any) => s.id === previewBooking.value?.service_id)
+    : null
+  if (!svc?.duration_service_in_s) return ''
+  const [h, m] = previewBooking.value.start_time.split(':').map(Number)
+  const totalMinutes = (h ?? 0) * 60 + (m ?? 0) + Math.round(svc.duration_service_in_s / 60)
+  const endH = Math.floor(totalMinutes / 60)
+  const endM = totalMinutes % 60
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
+})
+
 // Get preview booking for a specific time
 const getPreviewBookingAtTime = (date: Date, time: string) => {
   if (!previewBooking.value) return null
@@ -468,22 +488,19 @@ const isTimeSlotOccupied = (date: Date, time: string) => {
   return overlapping.length > 0
 }
 
-// Calculate booking duration in 30-minute slots
-const getBookingDurationSlots = (booking: Booking) => {
-  if (!booking.start_time || !booking.end_time) return 1
-
-  const startTime = new Date(booking.start_time)
-  const endTime = new Date(booking.end_time)
-  const durationMs = endTime.getTime() - startTime.getTime()
-  const durationSlots = Math.ceil(durationMs / (30 * 60 * 1000)) // 30 minutes per slot
-
-  return Math.max(1, durationSlots) // At least 1 slot
-}
-
-// Check if this is the first slot of a booking
-const isBookingStartSlot = (booking: Booking, time: string) => {
-  const bookingStartTime = extractTimeFromTimestamp(booking.start_time)
-  return bookingStartTime === time
+// Returns ALL bookings that START at this exact time slot (for stacked compact display)
+const getBookingsStartingAtTime = (date: Date, time: string) => {
+  const dateStr = formatDate(date)
+  return bookings.value?.filter((booking) => {
+    let bookingDate = ''
+    if (booking.booking_date) {
+      bookingDate = booking.booking_date.includes('T')
+        ? booking.booking_date.split('T')[0]
+        : booking.booking_date
+    }
+    if (bookingDate !== dateStr) return false
+    return extractTimeFromTimestamp(booking.start_time) === time
+  }) || []
 }
 
 // Event handlers
@@ -612,9 +629,17 @@ const navigateMonth = (direction: 'prev' | 'next') => {
   currentDate.value = newDate
 }
 
+const navigateDay = (direction: 'prev' | 'next') => {
+  const newDate = new Date(currentDate.value)
+  newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1))
+  currentDate.value = newDate
+}
+
 const navigate = (direction: 'prev' | 'next') => {
   if (viewMode.value === 'week') {
     navigateWeek(direction)
+  } else if (viewMode.value === 'day') {
+    navigateDay(direction)
   } else {
     navigateMonth(direction)
   }
@@ -890,6 +915,14 @@ const selectMiniCalDay = (date: Date | null) => {
                     year: 'numeric'
                   }) }}
                 </template>
+                <template v-else-if="viewMode === 'day'">
+                  {{ currentDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                  }) }}
+                </template>
                 <template v-else>
                   {{ currentMonthStart.toLocaleDateString('en-US', {
                     month: 'long',
@@ -902,9 +935,17 @@ const selectMiniCalDay = (date: Date | null) => {
 
             <div class="flex items-center rounded-lg border border-gray-600 overflow-hidden">
               <UButton
-                :variant="viewMode === 'week' ? 'solid' : 'ghost'"
+                :variant="viewMode === 'day' ? 'solid' : 'ghost'"
                 size="sm"
                 class="rounded-none border-0"
+                @click="viewMode = 'day'"
+              >
+                Day
+              </UButton>
+              <UButton
+                :variant="viewMode === 'week' ? 'solid' : 'ghost'"
+                size="sm"
+                class="rounded-none border-0 border-l border-gray-600"
                 @click="viewMode = 'week'"
               >
                 Week
@@ -1010,8 +1051,85 @@ const selectMiniCalDay = (date: Date | null) => {
 
         <!-- ── RIGHT: Main calendar ───────────────────────── -->
         <div class="flex-1 flex flex-col overflow-hidden">
+          <!-- Day View -->
+          <div v-if="viewMode === 'day'" class="h-full flex flex-col bg-white dark:bg-gray-900 overflow-auto">
+            <!-- Day Header -->
+            <div class="border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 p-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div
+                  class="text-3xl font-bold"
+                  :class="isToday(currentDate) ? 'text-blue-500 dark:text-blue-400' : 'text-slate-800 dark:text-white'"
+                >
+                  {{ currentDate.getDate() }}
+                </div>
+                <div>
+                  <div
+                    class="text-base font-semibold"
+                    :class="isToday(currentDate) ? 'text-blue-500 dark:text-blue-400' : 'text-slate-700 dark:text-gray-200'"
+                  >
+                    {{ currentDate.toLocaleDateString('en-US', { weekday: 'long' }) }}
+                  </div>
+                  <div class="text-sm text-slate-400 dark:text-gray-400">
+                    {{ currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) }}
+                  </div>
+                </div>
+                <span
+                  v-if="isToday(currentDate)"
+                  class="ml-2 px-2 py-0.5 text-xs font-bold bg-blue-500 text-white rounded-full"
+                >
+                  Today
+                </span>
+                <span
+                  v-if="isClosedDay(currentDate)"
+                  class="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full"
+                >
+                  Closed
+                </span>
+              </div>
+              <div class="text-sm font-medium text-slate-500 dark:text-gray-400">
+                {{ getBookingsForDate(currentDate).length }} appointment{{ getBookingsForDate(currentDate).length !== 1 ? 's' : '' }}
+              </div>
+            </div>
+
+            <!-- Day Time Slots -->
+            <div class="flex-1">
+              <div class="grid grid-cols-[80px_1fr]">
+                <div v-for="time in timeSlots" :key="time" class="contents">
+                  <!-- Time Label -->
+                  <div class="p-2 text-xs text-slate-400 dark:text-gray-400 text-right border-r border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 min-h-14 flex items-center justify-end pr-3">
+                    {{ time }}
+                  </div>
+
+                  <!-- Slot -->
+                  <div
+                    class="border-b border-slate-100 dark:border-gray-800 min-h-10 p-1 transition-all duration-200"
+                    :class="{
+                      'bg-blue-50/30 dark:bg-blue-900/10': isToday(currentDate) && !isClosedDay(currentDate),
+                      'bg-red-50/20 dark:bg-red-950/10 cursor-not-allowed': isClosedDay(currentDate),
+                      'hover:bg-slate-50 dark:hover:bg-gray-800/30 cursor-pointer': !isClosedDay(currentDate)
+                    }"
+                    @click.stop="!isClosedDay(currentDate) && handleTimeSlotClick(currentDate, time)"
+                  >
+                    <!-- Compact stacked pills -->
+                    <template v-for="booking in getBookingsStartingAtTime(currentDate, time)" :key="booking.id">
+                      <div
+                        class="w-full rounded text-white text-xs px-2 py-0.5 mb-0.5 cursor-pointer truncate flex items-center gap-2 leading-tight"
+                        :class="getBookingColor(booking)"
+                        @click.stop="editBooking(booking)"
+                      >
+                        <span class="font-semibold shrink-0">{{ extractTimeFromTimestamp(booking.start_time) }}</span>
+                        <span class="truncate">{{ booking.customer?.full_name || [booking.client_profile?.first_name, booking.client_profile?.last_name].filter(Boolean).join(' ') || booking.client_profile?.email || 'Customer' }}</span>
+                        <span class="shrink-0 ml-auto text-white/80 capitalize">{{ booking.status }}</span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Week View - Calendar Grid -->
-          <div v-if="viewMode === 'week'" class="h-full flex flex-col bg-white dark:bg-gray-900 overflow-auto">
+          <div v-else-if="viewMode === 'week'" class="h-full flex flex-col bg-white dark:bg-gray-900 overflow-auto">
             <!-- Week Days Header -->
             <div class="grid grid-cols-8 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
               <div class="p-3 text-sm font-medium text-slate-500 dark:text-gray-300 text-center border-r border-slate-200 dark:border-gray-700">
@@ -1071,77 +1189,32 @@ const selectMiniCalDay = (date: Date | null) => {
                     }"
                     @click.stop="handleTimeSlotClick(day, time)"
                   >
-                    <!-- Existing Bookings -->
-                    <div
-                      v-if="getBookingAtTime(day, time) && isBookingStartSlot(getBookingAtTime(day, time)!, time)"
-                      :key="getBookingAtTime(day, time)?.id"
-                      class="absolute inset-x-1 rounded-lg text-white text-xs p-2.5 cursor-pointer transition-all duration-300 z-10 outlook-booking-block"
-                      :class="getBookingColor(getBookingAtTime(day, time)!)"
-                      :style="{
-                        height: `${getBookingDurationSlots(getBookingAtTime(day, time)!) * 44 + (getBookingDurationSlots(getBookingAtTime(day, time)!) - 1) * 4}px`,
-                        minHeight: '44px'
-                      }"
-                      @click.stop="editBooking(getBookingAtTime(day, time)!)"
-                    >
-                      <!-- Modern Booking Content -->
-                      <div class="flex flex-col h-full">
-                        <!-- Time Range with Icon -->
-                        <div class="flex items-center text-white font-semibold text-xs mb-2">
-                          <div class="w-1.5 h-1.5 bg-white rounded-full mr-2 opacity-90" />
-                          {{ extractTimeFromTimestamp(getBookingAtTime(day, time)!.start_time) }} -
-                          {{ extractTimeFromTimestamp(getBookingAtTime(day, time)!.end_time) }}
-                        </div>
-
-                        <!-- Customer Name -->
-                        <div class="font-bold text-sm text-white truncate mb-1">
-                          {{ getBookingAtTime(day, time)!.client_profile?.first_name || getBookingAtTime(day, time)!.customer?.full_name || 'Customer' }}
-                          {{ getBookingAtTime(day, time)!.client_profile?.last_name || '' }}
-                        </div>
-
-                        <!-- Service & Duration -->
-                        <div class="text-white/90 text-xs truncate">
-                          {{ getBookingAtTime(day, time)!.service?.name || 'Service' }}
-                          <span v-if="getBookingAtTime(day, time)!.service?.duration_service_in_s" class="text-white/70">
-                            ({{ Math.round(getBookingAtTime(day, time)!.service.duration_service_in_s / 3600 * 10) / 10 }}h)
-                          </span>
-                        </div>
-                        <div v-if="getBookingAtTime(day, time)!.employee" class="text-white/80 text-xs truncate">
-                          {{ getBookingAtTime(day, time)!.employee?.full_name }}
-                        </div>
-
-                        <!-- Status Badge -->
-                        <div v-if="getBookingAtTime(day, time)!.status" class="mt-auto pt-1">
-                          <span class="inline-block px-2 py-0.5 text-xs rounded-full bg-white/25 capitalize font-medium text-white">
-                            {{ getBookingAtTime(day, time)!.status }}
-                          </span>
-                        </div>
+                    <!-- Existing Bookings - compact stacked pills -->
+                    <template v-for="booking in getBookingsStartingAtTime(day, time)" :key="booking.id">
+                      <div
+                        class="w-full rounded text-white text-xs px-1.5 py-0.5 mb-0.5 cursor-pointer truncate flex items-center gap-1 leading-tight"
+                        :class="getBookingColor(booking)"
+                        @click.stop="editBooking(booking)"
+                      >
+                        <span class="font-semibold shrink-0">{{ extractTimeFromTimestamp(booking.start_time) }}</span>
+                        <span class="truncate">{{ booking.customer?.full_name || [booking.client_profile?.first_name, booking.client_profile?.last_name].filter(Boolean).join(' ') || booking.client_profile?.email || 'Customer' }}</span>
+                        <span class="shrink-0 ml-auto text-white/80 capitalize hidden sm:inline">{{ booking.status }}</span>
                       </div>
-                    </div>
+                    </template>
 
                     <!-- Preview Booking -->
                     <div
                       v-if="getPreviewBookingAtTime(day, time)"
-                      class="absolute inset-x-1 rounded-lg text-white text-xs p-2.5 cursor-pointer transition-all duration-300 z-20 outlook-booking-block animate-pulse"
-                      :class="getBookingColor(getPreviewBookingAtTime(day, time)!)"
-                      style="height: 44px; min-height: 44px;"
+                      class="w-full rounded text-white text-xs px-1.5 py-0.5 mb-0.5 cursor-pointer truncate flex items-center gap-1 animate-pulse bg-blue-500/80"
                     >
-                      <div class="flex flex-col h-full">
-                        <div class="flex items-center text-white font-semibold text-xs mb-2">
-                          <div class="w-1.5 h-1.5 bg-white rounded-full mr-2 animate-pulse" />
-                          {{ previewBooking?.start_time }}
-                        </div>
-                        <div class="font-bold text-sm text-white truncate mb-1">
-                          New Booking
-                        </div>
-                        <div class="text-white/90 text-xs">
-                          Creating...
-                        </div>
-                      </div>
+                      <span class="font-semibold shrink-0">{{ previewBooking?.start_time }}{{ previewEndTime ? ' - ' + previewEndTime : '' }}</span>
+                      <span class="truncate">{{ previewCustomerName || 'New Booking' }}</span>
+                      <span class="shrink-0 ml-auto text-white/80">Pending</span>
                     </div>
 
                     <!-- Empty Slot Hover Indicator -->
                     <div
-                      v-if="!getBookingAtTime(day, time) && !getPreviewBookingAtTime(day, time) && !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)"
+                      v-if="getBookingsStartingAtTime(day, time).length === 0 && !getPreviewBookingAtTime(day, time) && !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)"
                       class="opacity-0 hover:opacity-100 transition-all duration-200 text-center w-full h-full flex items-center justify-center group"
                     >
                       <div class="bg-gray-700/80 backdrop-blur-sm px-3 py-1 rounded-lg text-gray-300 text-xs font-medium group-hover:bg-blue-600/80 group-hover:text-white transition-all duration-200">
@@ -1151,7 +1224,7 @@ const selectMiniCalDay = (date: Date | null) => {
 
                     <!-- Selected Slot Indicator -->
                     <div
-                      v-if="!getBookingAtTime(day, time) && !getPreviewBookingAtTime(day, time) && selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time"
+                      v-if="getBookingsStartingAtTime(day, time).length === 0 && !getPreviewBookingAtTime(day, time) && selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time"
                       class="absolute inset-x-1 inset-y-1 rounded-lg border-2 border-blue-500 bg-blue-500/20 flex items-center justify-center animate-pulse"
                     >
                       <div class="text-blue-300 text-xs font-medium">
@@ -1165,7 +1238,7 @@ const selectMiniCalDay = (date: Date | null) => {
           </div>
 
           <!-- Month View - Traditional Calendar -->
-          <div v-else class="h-full flex flex-col bg-white dark:bg-gray-900 overflow-auto">
+          <div v-else-if="viewMode === 'month'" class="h-full flex flex-col bg-white dark:bg-gray-900 overflow-auto">
             <!-- Month Days Header -->
             <div class="grid grid-cols-7 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
               <div
@@ -1220,7 +1293,7 @@ const selectMiniCalDay = (date: Date | null) => {
                     >
                       <div class="font-medium truncate">
                         {{ extractTimeFromTimestamp(booking.start_time) }}
-                        {{ booking.client_profile?.first_name || 'Customer' }}
+                        {{ booking.customer?.full_name || [booking.client_profile?.first_name, booking.client_profile?.last_name].filter(Boolean).join(' ') || 'Customer' }}
                       </div>
                     </div>
 
