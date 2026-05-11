@@ -140,6 +140,28 @@ const editingBooking = ref<Booking | null>(null)
 // Add hover state for better UX
 const hoveredSlot = ref<{ date: Date, time: string } | null>(null)
 
+// Appointment list modal state
+const showAppointmentListModal = ref(false)
+const appointmentListDate = ref<Date | null>(null)
+const appointmentListBookings = ref<Booking[]>([])
+
+const openAppointmentList = (date: Date, apptBookings: Booking[]) => {
+  appointmentListDate.value = date
+  appointmentListBookings.value = apptBookings
+  showAppointmentListModal.value = true
+}
+
+const closeAppointmentList = () => {
+  showAppointmentListModal.value = false
+  appointmentListDate.value = null
+  appointmentListBookings.value = []
+}
+
+const selectAppointmentFromList = (booking: Booking) => {
+  closeAppointmentList()
+  editBooking(booking)
+}
+
 // Form validation - only customer_id is required from user input
 const bookingSchema = z.object({
   customer_id: z.string().min(1, 'Customer is required'),
@@ -508,66 +530,36 @@ const handleTimeSlotClick = (date: Date, time: string) => {
   // Block action on closed days
   if (isClosedDay(date)) return
 
-  // Check if this is the start slot of an existing booking
-  const existingBooking = getBookingAtTime(date, time)
+  // Clicking the slot (not a booking pill) always opens a fresh create modal
+  editingBooking.value = null
+  selectedDate.value = date
+  selectedTimeSlot.value = time
 
-  // Check if this slot is occupied by any booking (even if it's not the start slot)
-  const isOccupied = isTimeSlotOccupied(date, time)
-
-  console.log(`🖱️ Clicked slot: ${formatDate(date)} ${time}`)
-  console.log(`📍 Existing booking at start:`, existingBooking)
-  console.log(`🚫 Slot occupied:`, isOccupied)
-
-  if (existingBooking) {
-    // Edit existing booking (this is the start slot)
-    editBooking(existingBooking)
-  } else if (isOccupied) {
-    // Find which booking occupies this slot and edit it
-    const overlappingBookings = getBookingsOverlappingTime(date, time)
-    if (overlappingBookings.length > 0) {
-      editBooking(overlappingBookings[0]) // Edit the first overlapping booking
-    }
-  } else {
-    // Create new booking with immediate preview
-    editingBooking.value = null
-    selectedDate.value = date
-    selectedTimeSlot.value = time
-
-    // Set up new booking data
-    newBooking.value = {
-      customer_id: '',
-      client_profile_id: '',
-      client_business_id: undefined,
-      employee_id: '',
-      service_id: '',
-      booking_date: formatDate(date) || '',
-      start_time: time,
-      notes: ''
-    }
-
-    // Show immediate preview
-    previewBooking.value = { ...newBooking.value }
-    showCreateModal.value = true
-
-    console.log('📋 Created preview booking:', previewBooking.value)
+  newBooking.value = {
+    customer_id: '',
+    client_profile_id: '',
+    client_business_id: undefined,
+    employee_id: '',
+    service_id: '',
+    booking_date: formatDate(date) || '',
+    start_time: time,
+    notes: ''
   }
+
+  previewBooking.value = { ...newBooking.value }
+  showCreateModal.value = true
 }
 
 const handleMonthDayClick = (date: Date) => {
-  // Block action on closed days
   if (isClosedDay(date)) return
 
   const dayBookings = getBookingsForDate(date)
 
-  if (dayBookings.length === 1) {
-    // If only one booking, edit it directly
-    editBooking(dayBookings[0])
-  } else if (dayBookings.length > 1) {
-    // If multiple bookings, you could show a list or edit the first one
-    // For now, let's edit the first booking
-    editBooking(dayBookings[0])
+  if (dayBookings.length > 0) {
+    // Show appointment list for this day
+    openAppointmentList(date, dayBookings)
   } else {
-    // No bookings, create a new one with 9:00 AM default time
+    // No bookings — open create modal
     editingBooking.value = null
     selectedDate.value = date
     selectedTimeSlot.value = '09:00'
@@ -1184,8 +1176,7 @@ const selectMiniCalDay = (date: Date | null) => {
                       'bg-blue-50/50 dark:bg-gray-800/20': isToday(day) && !isClosedDay(day),
                       'bg-red-50/30 dark:bg-red-950/10 cursor-not-allowed': isClosedDay(day),
                       'bg-white dark:bg-gray-900 cursor-pointer': !isToday(day) && !isClosedDay(day),
-                      'bg-blue-100/60 dark:bg-blue-900/30 border-blue-500/50': selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time,
-                      'hover:bg-slate-50 dark:hover:bg-gray-800/30': !isClosedDay(day) && !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)
+                      'hover:bg-slate-50 dark:hover:bg-gray-800/30': !isClosedDay(day)
                     }"
                     @click.stop="handleTimeSlotClick(day, time)"
                   >
@@ -1214,7 +1205,7 @@ const selectMiniCalDay = (date: Date | null) => {
 
                     <!-- Empty Slot Hover Indicator -->
                     <div
-                      v-if="getBookingsStartingAtTime(day, time).length === 0 && !getPreviewBookingAtTime(day, time) && !(selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time)"
+                      v-if="getBookingsStartingAtTime(day, time).length === 0 && !getPreviewBookingAtTime(day, time)"
                       class="opacity-0 hover:opacity-100 transition-all duration-200 text-center w-full h-full flex items-center justify-center group"
                     >
                       <div class="bg-gray-700/80 backdrop-blur-sm px-3 py-1 rounded-lg text-gray-300 text-xs font-medium group-hover:bg-blue-600/80 group-hover:text-white transition-all duration-200">
@@ -1222,15 +1213,7 @@ const selectMiniCalDay = (date: Date | null) => {
                       </div>
                     </div>
 
-                    <!-- Selected Slot Indicator -->
-                    <div
-                      v-if="getBookingsStartingAtTime(day, time).length === 0 && !getPreviewBookingAtTime(day, time) && selectedDate && formatDate(selectedDate) === formatDate(day) && selectedTimeSlot === time"
-                      class="absolute inset-x-1 inset-y-1 rounded-lg border-2 border-blue-500 bg-blue-500/20 flex items-center justify-center animate-pulse"
-                    >
-                      <div class="text-blue-300 text-xs font-medium">
-                        Selected
-                      </div>
-                    </div>
+
                   </div>
                 </div>
               </div>
@@ -1298,12 +1281,13 @@ const selectMiniCalDay = (date: Date | null) => {
                     </div>
 
                     <!-- More bookings indicator -->
-                    <div
+                    <button
                       v-if="getBookingsForDate(dayInfo.date).length > 3"
-                      class="text-xs text-slate-400 dark:text-gray-400 px-2"
+                      class="text-xs text-blue-500 dark:text-blue-400 px-2 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors font-medium text-left"
+                      @click.stop="openAppointmentList(dayInfo.date, getBookingsForDate(dayInfo.date))"
                     >
                       +{{ getBookingsForDate(dayInfo.date).length - 3 }} more
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1315,6 +1299,57 @@ const selectMiniCalDay = (date: Date | null) => {
       <!-- end flex body wrapper -->
     </template>
   </UDashboardPanel>
+
+  <!-- Appointment List Modal -->
+  <div v-if="showAppointmentListModal" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" @click="closeAppointmentList" />
+    <div class="relative w-full max-w-md mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
+            {{ appointmentListDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) }}
+          </h3>
+          <p class="text-sm text-slate-400 dark:text-gray-400 mt-0.5">
+            {{ appointmentListBookings.length }} appointment{{ appointmentListBookings.length !== 1 ? 's' : '' }}
+          </p>
+        </div>
+        <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="closeAppointmentList" />
+      </div>
+      <!-- List -->
+      <div class="flex-1 overflow-y-auto py-2">
+        <div
+          v-for="booking in appointmentListBookings"
+          :key="booking.id"
+          class="flex items-center gap-4 px-6 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors group"
+          @click="selectAppointmentFromList(booking)"
+        >
+          <span
+            class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            :class="booking.status === 'completed' ? 'bg-green-500' : booking.status === 'cancelled' ? 'bg-red-500' : 'bg-blue-500'"
+          />
+          <span class="text-sm font-semibold text-slate-500 dark:text-gray-400 w-12 flex-shrink-0 tabular-nums">
+            {{ extractTimeFromTimestamp(booking.start_time) }}
+          </span>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium text-slate-800 dark:text-gray-100 truncate">
+              {{ booking.customer?.full_name || [booking.client_profile?.first_name, booking.client_profile?.last_name].filter(Boolean).join(' ') || booking.client_profile?.email || 'Customer' }}
+            </div>
+            <div class="text-xs text-slate-400 dark:text-gray-500 truncate">
+              {{ (booking as any).service?.name || 'No service' }}<span v-if="(booking as any).employee" class="ml-1">· {{ (booking as any).employee.full_name }}</span>
+            </div>
+          </div>
+          <span
+            class="text-xs px-2 py-0.5 rounded-full capitalize flex-shrink-0"
+            :class="booking.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : booking.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'"
+          >
+            {{ booking.status || 'pending' }}
+          </span>
+          <UIcon name="i-lucide-chevron-right" class="w-4 h-4 text-slate-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Create/Edit Booking Modal -->
   <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center">
@@ -1338,7 +1373,7 @@ const selectMiniCalDay = (date: Date | null) => {
 
       <!-- Form Content -->
       <div class="flex-1 overflow-y-auto p-6">
-        <div class="space-y-6">
+        <div class="flex flex-col gap-6">
           <UFormGroup label="Date" required>
             <UInput
               v-model="newBooking.booking_date"

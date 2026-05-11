@@ -253,9 +253,6 @@ const exportCSV = () => {
           <UButton variant="outline" size="sm" icon="i-lucide-download" color="neutral" @click="exportCSV">
             Export
           </UButton>
-          <UButton size="sm" icon="i-lucide-plus" color="primary" @click="showEditModal = true; editingBooking = null; editForm = { employee_id: '', service_id: '', booking_date: '', start_time: '', status: 'pending', notes: '' }">
-            New Appointment
-          </UButton>
         </template>
       </UDashboardNavbar>
     </template>
