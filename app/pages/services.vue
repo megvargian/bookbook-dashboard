@@ -25,7 +25,22 @@ if (userStore.clientProfile?.role !== 'admin' || userStore.clientProfile?.user_t
   })
 }
 
-const { data: services, refresh: refreshServices } = await useFetch('/api/services', { default: () => [] })
+const services = ref<any[]>([])
+
+async function refreshServices() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const response = await fetch('/api/services', {
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    })
+    if (response.ok) services.value = await response.json()
+  } catch (error) {
+    console.error('Error refreshing services:', error)
+  }
+}
+
+await refreshServices()
 
 const q = ref('')
 const showAddModal = ref(false)

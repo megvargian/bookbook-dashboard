@@ -32,6 +32,7 @@ export default eventHandler(async (event) => {
 
     // Check authentication for POST requests (creating employees)
     const method = getMethod(event)
+    let postClientBusinessId: string | null = null
 
     if (method === 'POST') {
       // Try to get token from Authorization header first, then from Supabase cookies
@@ -97,7 +98,7 @@ export default eventHandler(async (event) => {
       // Check if user is admin client
       const { data: profile, error: profileError } = await supabase
         .from('client_profile')
-        .select('role')
+        .select('role, client_business_id')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -115,6 +116,8 @@ export default eventHandler(async (event) => {
           statusMessage: 'Admin access required'
         })
       }
+
+      postClientBusinessId = profile.client_business_id ?? null
     }
 
     if (method === 'POST') {
@@ -153,7 +156,8 @@ export default eventHandler(async (event) => {
           service_types: body.service_types,
           working_week_days: body.working_week_days,
           availability: body.availability,
-          location: body.location
+          location: body.location,
+          client_business_id: postClientBusinessId
         })
         .select()
         .single()
@@ -171,6 +175,30 @@ export default eventHandler(async (event) => {
       return { success: true, employee }
     } else {
       // GET - Fetch employees
+      // Resolve caller's business so results are scoped per business
+      let clientBusinessId: string | null = null
+      const getAuthHeader = getHeader(event, 'authorization')
+      if (getAuthHeader && getAuthHeader.startsWith('Bearer ')) {
+        const getToken = getAuthHeader.replace('Bearer ', '')
+        const { data: getUserData } = await supabase.auth.getUser(getToken)
+        if (getUserData.user) {
+          const { data: prof } = await supabase
+            .from('client_profile')
+            .select('client_business_id')
+            .eq('user_id', getUserData.user.id)
+            .maybeSingle()
+          clientBusinessId = prof?.client_business_id ?? null
+          if (!clientBusinessId) {
+            const { data: emp } = await supabase
+              .from('employee')
+              .select('client_business_id')
+              .eq('id', getUserData.user.id)
+              .maybeSingle()
+            clientBusinessId = emp?.client_business_id ?? null
+          }
+        }
+      }
+
       const query = getQuery(event)
       const serviceIds = query.service_ids ? String(query.service_ids).split(',').filter(Boolean) : []
       const date = query.date ? String(query.date) : null
@@ -203,7 +231,7 @@ export default eventHandler(async (event) => {
         if (date && time && duration) {
           // Get existing bookings for the specified date and overlapping times
           const [timeHour, timeMinute] = time.split(':').map(Number)
-          const startTimeInMinutes = timeHour * 60 + timeMinute
+          const startTimeInMinutes = (timeHour ?? 0) * 60 + (timeMinute ?? 0)
           const endTimeInMinutes = startTimeInMinutes + Math.ceil(duration / 60) // duration in seconds converted to minutes
 
           const { data: existingBookings, error: bookingsError } = await supabase
@@ -252,11 +280,13 @@ export default eventHandler(async (event) => {
           }
 
           // Fetch available employees
-          const { data: employees, error } = await supabase
+          let availQuery = supabase
             .from('employee')
             .select('*')
             .in('id', availableEmployeeIds)
             .order('created_at', { ascending: false })
+          if (clientBusinessId) availQuery = availQuery.eq('client_business_id', clientBusinessId)
+          const { data: employees, error } = await availQuery
 
           if (error) {
             console.error('Supabase error:', error)
@@ -269,11 +299,13 @@ export default eventHandler(async (event) => {
           return employees || []
         } else {
           // No availability check - just return employees who provide the services
-          const { data: employees, error } = await supabase
+          let servEmpQuery = supabase
             .from('employee')
             .select('*')
             .in('id', employeeIds)
             .order('created_at', { ascending: false })
+          if (clientBusinessId) servEmpQuery = servEmpQuery.eq('client_business_id', clientBusinessId)
+          const { data: employees, error } = await servEmpQuery
 
           if (error) {
             console.error('Supabase error:', error)
@@ -287,10 +319,12 @@ export default eventHandler(async (event) => {
         }
       } else {
         // No service filter - return all employees
-        const { data: employees, error } = await supabase
+        let allEmpQuery = supabase
           .from('employee')
           .select('*')
           .order('created_at', { ascending: false })
+        if (clientBusinessId) allEmpQuery = allEmpQuery.eq('client_business_id', clientBusinessId)
+        const { data: employees, error } = await allEmpQuery
 
         if (error) {
           console.error('Supabase error:', error)

@@ -9,7 +9,7 @@ import { z } from 'zod'
 const updateSchema = z.object({
   opening_time: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM format'),
   closing_time: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM format'),
-  open_days: z.array(z.number().int().min(0).max(6)).min(0)
+  open_days: z.array(z.coerce.number().int().min(0).max(6)).min(0)
 })
 
 export default defineEventHandler(async (event) => {
@@ -34,35 +34,55 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Invalid session' })
   }
 
-  // Get the admin's client_profile and linked business
-  const { data: profile, error: profileError } = await supabase
+  // Get the admin's client_profile and linked business (with employee fallback)
+  let businessId: string | null = null
+
+  const { data: profile } = await supabase
     .from('client_profile')
     .select('client_business_id, role')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
-  if (profileError || !profile?.client_business_id) {
+  businessId = profile?.client_business_id ?? null
+
+  if (!businessId) {
+    const { data: empRecord } = await supabase
+      .from('employee')
+      .select('client_business_id')
+      .eq('id', user.id)
+      .maybeSingle()
+    businessId = empRecord?.client_business_id ?? null
+  }
+
+  if (!businessId) {
     throw createError({ statusCode: 404, statusMessage: 'Business not found for this user' })
   }
 
-  const businessId = profile.client_business_id
   const method = getMethod(event)
 
   if (method === 'GET') {
     const { data, error } = await supabase
       .from('client_business')
       .select('opening_time, closing_time, open_days')
-      .eq('id', businessId)
-      .single()
+      .eq('client_business_id', businessId)
+      .maybeSingle()
 
     if (error) {
-      throw createError({ statusCode: 500, statusMessage: 'Failed to fetch business hours' })
+      console.error('business-hours GET error:', error)
+      // Return defaults if columns don't exist yet (migration pending) or other DB error
+      return {
+        opening_time: '09:00',
+        closing_time: '18:00',
+        open_days: [1, 2, 3, 4, 5]
+      }
     }
 
     return {
       opening_time: data?.opening_time ?? '09:00',
       closing_time: data?.closing_time ?? '18:00',
-      open_days: data?.open_days ?? [1, 2, 3, 4, 5]
+      open_days: Array.isArray(data?.open_days)
+        ? data.open_days.map((d: string | number) => Number(d))
+        : [1, 2, 3, 4, 5]
     }
   }
 
@@ -72,7 +92,7 @@ export default defineEventHandler(async (event) => {
     if (!validation.success) {
       throw createError({
         statusCode: 400,
-        statusMessage: validation.error.errors.map(e => e.message).join(', ')
+        statusMessage: validation.error.issues.map((e: { message: string }) => e.message).join(', ')
       })
     }
 

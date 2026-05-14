@@ -26,51 +26,37 @@ if (userStore.clientProfile?.role !== 'admin' || userStore.clientProfile?.user_t
   })
 }
 
-const { data: employees, refresh: refreshEmployees } = await useFetch<Employee[]>('/api/employees', { default: () => [] })
+const employees = ref<Employee[]>([])
+const services = ref<any[]>([])
 
-// Services data with proper reactivity
-const services = ref([])
-const servicesLoading = ref(false)
-
-// Load services function
-async function loadServices() {
-  servicesLoading.value = true
+async function refreshEmployees() {
   try {
-    console.log('Starting to load services...')
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      console.error('No session for loading services')
-      return
-    }
-
-    console.log('Session found, making API call...')
-    const response = await fetch('/api/services', {
-      headers: {
-        Authorization: `Bearer ${session.access_token}`
-      }
+    if (!session) return
+    const response = await fetch('/api/employees', {
+      headers: { Authorization: `Bearer ${session.access_token}` }
     })
-
-    console.log('Services API response status:', response.status)
-    if (response.ok) {
-      const data = await response.json()
-      console.log('Raw services data from API:', data)
-      services.value = data || []
-      console.log('Set services.value to:', services.value)
-      console.log('Services count:', services.value.length)
-    } else {
-      const errorText = await response.text()
-      console.error('Failed to load services:', response.status, errorText)
-    }
+    if (response.ok) employees.value = await response.json()
   } catch (error) {
-    console.error('Error loading services:', error)
-  } finally {
-    servicesLoading.value = false
-    console.log('Services loading finished, servicesLoading:', servicesLoading.value)
+    console.error('Error refreshing employees:', error)
   }
 }
 
-// Load services on component mount
-await loadServices()
+async function loadServices() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const response = await fetch('/api/services', {
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    })
+    if (response.ok) services.value = await response.json()
+  } catch (error) {
+    console.error('Error loading services:', error)
+  }
+}
+
+// Load both in parallel on mount
+await Promise.all([refreshEmployees(), loadServices()])
 
 const q = ref('')
 const showAddModal = ref(false)
@@ -145,7 +131,7 @@ function removeDayOff(date: string) {
 function formatDisplayDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', {
     weekday: 'short',
-    year: 'numeric', 
+    year: 'numeric',
     month: 'short',
     day: 'numeric'
   })
@@ -362,7 +348,7 @@ async function openEditModal(employee: Employee) {
     : employee.working_week_days
       ? employee.working_week_days.split(',').map((s: string) => s.trim()).filter(Boolean)
       : []
-  
+
   // Load days off data
   editDaysOff.value = Array.isArray(employee.days_off) ? [...employee.days_off] : []
 
@@ -794,7 +780,7 @@ async function removeEmployee(employeeId: string) {
                 Add
               </button>
             </div>
-            
+
             <!-- Current days off -->
             <div v-if="editDaysOff.length > 0" class="flex flex-wrap gap-2">
               <div
@@ -812,7 +798,7 @@ async function removeEmployee(employeeId: string) {
                 </button>
               </div>
             </div>
-            
+
             <p v-else class="text-sm text-slate-400 italic">
               No days off scheduled
             </p>

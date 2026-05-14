@@ -32,6 +32,7 @@ export default eventHandler(async (event) => {
 
     // Check authentication for POST, PUT, DELETE requests
     const method = getMethod(event)
+    let postClientBusinessId: string | null = null
 
     if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
       // Try to get token from Authorization header first, then from Supabase cookies
@@ -96,7 +97,7 @@ export default eventHandler(async (event) => {
       // Check if user is admin client
       const { data: profile, error: profileError } = await supabase
         .from('client_profile')
-        .select('role')
+        .select('role, client_business_id')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -106,6 +107,8 @@ export default eventHandler(async (event) => {
           statusMessage: 'Admin access required'
         })
       }
+
+      postClientBusinessId = profile.client_business_id ?? null
     }
 
     if (method === 'POST') {
@@ -119,7 +122,8 @@ export default eventHandler(async (event) => {
           description: body.description,
           price: body.price,
           categories: body.categories,
-          duration_service_in_s: body.duration_hours ? Math.round(body.duration_hours * 3600) : null // Convert hours to seconds
+          duration_service_in_s: body.duration_hours ? Math.round(body.duration_hours * 3600) : null,
+          client_business_id: postClientBusinessId
         })
         .select()
         .single()
@@ -193,11 +197,39 @@ export default eventHandler(async (event) => {
 
       return { success: true }
     } else {
-      // GET - Fetch services
-      const { data: services, error } = await supabase
+      // GET - Fetch services filtered by the caller's business
+      let clientBusinessId: string | null = null
+      const getAuthHeader = getHeader(event, 'authorization')
+      if (getAuthHeader && getAuthHeader.startsWith('Bearer ')) {
+        const getToken = getAuthHeader.replace('Bearer ', '')
+        const { data: getUserData } = await supabase.auth.getUser(getToken)
+        if (getUserData.user) {
+          const { data: prof } = await supabase
+            .from('client_profile')
+            .select('client_business_id')
+            .eq('user_id', getUserData.user.id)
+            .maybeSingle()
+          clientBusinessId = prof?.client_business_id ?? null
+          if (!clientBusinessId) {
+            const { data: emp } = await supabase
+              .from('employee')
+              .select('client_business_id')
+              .eq('id', getUserData.user.id)
+              .maybeSingle()
+            clientBusinessId = emp?.client_business_id ?? null
+          }
+        }
+      }
+
+      let servicesQuery = supabase
         .from('service')
         .select('*')
         .order('created_at', { ascending: false })
+      if (clientBusinessId) {
+        servicesQuery = servicesQuery.eq('client_business_id', clientBusinessId)
+      }
+
+      const { data: services, error } = await servicesQuery
 
       if (error) {
         console.error('Supabase error:', error)

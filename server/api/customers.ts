@@ -43,11 +43,9 @@ export default defineEventHandler(async (event) => {
     config.supabaseServiceKey || config.supabase.serviceKey!
   )
 
-  // Allow POST requests without authentication for public booking page
-  if (method === 'POST') {
-    const newCustomerData = await readBody(event)
-    return await createCustomer(supabase, newCustomerData)
-  }
+  // Allow POST requests without authentication for public booking page,
+  // but if a bearer token is present we resolve the business and attach it.
+  // All other methods require authentication.
 
   // For GET, PUT, DELETE - require authentication
   // Try to get token from Authorization header first, then from Supabase cookies
@@ -92,20 +90,44 @@ export default defineEventHandler(async (event) => {
   }
 
   if (!user || !token) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Authentication required - please login'
-    })
+    // Allow unauthenticated POST for public booking flow; all others require auth
+    if (method !== 'POST') {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Authentication required - please login'
+      })
+    }
+  }
+
+  // Resolve the caller's business ID so data is scoped per business
+  let clientBusinessId: string | null = null
+  if (user) {
+    const { data: callerProfile } = await supabase
+      .from('client_profile')
+      .select('client_business_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    // Employees belong to a business too — fall back to employee record
+    clientBusinessId = callerProfile?.client_business_id ?? null
+    if (!clientBusinessId) {
+      const { data: empRecord } = await supabase
+        .from('employee')
+        .select('client_business_id')
+        .eq('id', user.id)
+        .maybeSingle()
+      clientBusinessId = empRecord?.client_business_id ?? null
+    }
   }
 
   try {
     switch (method) {
       case 'GET':
-        return await getCustomers(supabase)
+        return await getCustomers(supabase, clientBusinessId)
 
       case 'POST':
         const newCustomerData = await readBody(event)
-        return await createCustomer(supabase, newCustomerData)
+        return await createCustomer(supabase, newCustomerData, clientBusinessId)
 
       case 'PUT':
         const updateData = await readBody(event)
@@ -143,12 +165,18 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-async function getCustomers(supabase: any): Promise<Customer[]> {
+async function getCustomers(supabase: any, clientBusinessId: string | null): Promise<Customer[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('customer')
       .select('*')
       .order('created_at', { ascending: false })
+
+    if (clientBusinessId) {
+      query = query.eq('client_business_id', clientBusinessId)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error('Supabase error in getCustomers:', error)
@@ -166,7 +194,7 @@ async function getCustomers(supabase: any): Promise<Customer[]> {
   }
 }
 
-async function createCustomer(supabase: any, customerData: any): Promise<any> {
+async function createCustomer(supabase: any, customerData: any, clientBusinessId: string | null = null): Promise<any> {
   // Validate required fields
   if (!customerData.full_name && !(customerData.first_name && customerData.last_name)) {
     throw createError({
@@ -181,7 +209,8 @@ async function createCustomer(supabase: any, customerData: any): Promise<any> {
     email: customerData.email || null,
     phone_number: customerData.phone || customerData.phone_number || null,
     gender: customerData.gender || null,
-    date_of_birth: customerData.date_of_birth || null
+    date_of_birth: customerData.date_of_birth || null,
+    client_business_id: clientBusinessId || customerData.client_business_id || null
   }
 
   const { data, error } = await supabase
