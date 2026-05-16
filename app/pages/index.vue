@@ -84,6 +84,8 @@ const { data: services } = await useFetch('/api/services', {
 const { data: clients } = await useFetch('/api/customers', {
   default: () => [],
   headers: authHeaders,
+  key: 'customers-data',
+  server: false,
   onResponse: ({ response }) => {
     console.log('Customers API response:', response._data)
     console.log('Customers length:', response._data?.length || 0)
@@ -127,6 +129,19 @@ const serviceOptions = computed(() => {
 console.log('Service Options:', serviceOptions.value)
 console.log('Employee Options:', employeeOptions.value)
 console.log('Customer Options:', customerOptions.value)
+
+// Merged customer list for the edit/create modal — always includes the booking's own customer
+// even if it's not in the filtered clients list (e.g. customer has null client_business_id)
+const allCustomerOptions = computed(() => {
+  const list: any[] = Array.isArray(clients.value) ? [...(clients.value as any[])] : []
+  if (editingBooking.value?.customer) {
+    const alreadyInList = list.some((c: any) => c.id === (editingBooking.value as any).customer.id)
+    if (!alreadyInList) {
+      list.unshift(editingBooking.value.customer)
+    }
+  }
+  return list
+})
 
 // Calendar state
 const currentDate = ref(new Date())
@@ -1406,7 +1421,7 @@ const selectMiniCalDay = (date: Date | null) => {
               <option value="">
                 Select customer
               </option>
-              <option v-for="customer in clients" :key="(customer as any)?.id" :value="(customer as any)?.id">
+              <option v-for="customer in allCustomerOptions" :key="(customer as any)?.id" :value="(customer as any)?.id" :selected="(customer as any)?.id === newBooking.customer_id" class="text-navy-500 dark:text-white">
                 {{ (customer as any)?.full_name || (customer as any)?.email || 'Unknown Customer' }}
               </option>
             </select>
