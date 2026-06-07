@@ -77,6 +77,74 @@ onMounted(() => fetchNotifications())
 watch(isNotificationsSlideoverOpen, (open) => {
   if (open) fetchNotifications()
 })
+
+// ── Notification chime (Web Audio API — no file needed) ─────────────────
+function playNotificationSound() {
+  try {
+    const ctx = new AudioContext()
+
+    // Two-tone "ding dong": higher note then lower note
+    const notes = [
+      { freq: 880, start: 0, duration: 0.18 },
+      { freq: 660, start: 0.20, duration: 0.28 }
+    ]
+
+    notes.forEach(({ freq, start, duration }) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      osc.type = 'sine'
+      osc.frequency.value = freq
+
+      const t = ctx.currentTime + start
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.35, t + 0.01) // quick attack
+      gain.gain.exponentialRampToValueAtTime(0.001, t + duration) // smooth decay
+
+      osc.start(t)
+      osc.stop(t + duration)
+    })
+
+    // Clean up context after both notes finish
+    setTimeout(() => ctx.close(), 800)
+  } catch {
+    // Web Audio not available (e.g. SSR or browser restriction) — silently skip
+  }
+}
+
+// ── Supabase Realtime: live push for new notifications ──────────────────
+// The DB trigger `on_booking_insert` inserts a notification row whenever a
+// new booking is created (from the dashboard OR from the external booking site).
+// We subscribe here so the badge + list update instantly without polling.
+onMounted(() => {
+  const channel = supabase
+    .channel('admin-notifications')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notification'
+      },
+      (payload) => {
+        const incoming = payload.new as import('~/types').Notification
+        // Avoid duplicates (e.g. if fetchNotifications already picked it up)
+        const alreadyPresent = notifications.value.some(n => n.id === incoming.id)
+        if (!alreadyPresent) {
+          notifications.value = [incoming, ...notifications.value]
+          playNotificationSound()
+        }
+      }
+    )
+    .subscribe()
+
+  onUnmounted(() => {
+    supabase.removeChannel(channel)
+  })
+})
 </script>
 
 <template>
