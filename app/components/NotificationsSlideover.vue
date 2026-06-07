@@ -78,10 +78,9 @@ watch(isNotificationsSlideoverOpen, (open) => {
   if (open) fetchNotifications()
 })
 
-// ── Notification chime (Web Audio API) ──────────────────────────────────
-// AudioContext auto-suspends after inactivity. We must call resume() and
-// AWAIT it before scheduling notes — otherwise the context is still suspended
-// when the oscillators try to start.
+// ── Notification chime ───────────────────────────────────────────────────
+// Uses AudioBufferSourceNode (pre-rendered PCM) — more reliable than
+// OscillatorNode after an AudioContext suspend/resume cycle.
 let audioCtx: AudioContext | null = null
 const toast = useToast()
 
@@ -90,12 +89,28 @@ function getOrCreateAudioContext(): AudioContext | null {
   try {
     if (!audioCtx) audioCtx = new AudioContext()
     return audioCtx
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
-// Unlock AudioContext on ANY user interaction — covers clicks, keyboard, touch
+// Pre-render a two-tone ding-dong into a PCM buffer
+function buildChimeBuffer(ctx: AudioContext): AudioBuffer {
+  const sr = ctx.sampleRate
+  const buf = ctx.createBuffer(1, Math.floor(sr * 0.55), sr)
+  const d = buf.getChannelData(0)
+  // note 1: 880 Hz, 0–0.18 s
+  for (let i = 0; i < Math.floor(sr * 0.18); i++) {
+    d[i] = Math.sin(2 * Math.PI * 880 * (i / sr)) * Math.exp(-i / (sr * 0.07)) * 0.45
+  }
+  // note 2: 660 Hz, 0.22 s–0.55 s
+  const off = Math.floor(sr * 0.22)
+  for (let i = off; i < Math.floor(sr * 0.55); i++) {
+    const t = (i - off) / sr
+    d[i] = Math.sin(2 * Math.PI * 660 * t) * Math.exp(-t / 0.11) * 0.45
+  }
+  return buf
+}
+
+// Unlock on any interaction
 onMounted(() => {
   const unlock = () => {
     const ctx = getOrCreateAudioContext()
@@ -115,33 +130,13 @@ async function playNotificationSound() {
   try {
     const ctx = getOrCreateAudioContext()
     if (!ctx) return
-
-    // Resume is async — MUST await before scheduling audio or notes are dropped
-    if (ctx.state === 'suspended') await ctx.resume()
+    if (ctx.state !== 'running') await ctx.resume()
     if (ctx.state !== 'running') return
-
-    const notes = [
-      { freq: 880, start: 0, duration: 0.18 },
-      { freq: 660, start: 0.22, duration: 0.30 }
-    ]
-
-    notes.forEach(({ freq, start, duration }) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      const t = ctx.currentTime + start
-      gain.gain.setValueAtTime(0, t)
-      gain.gain.linearRampToValueAtTime(0.4, t + 0.01)
-      gain.gain.exponentialRampToValueAtTime(0.001, t + duration)
-      osc.start(t)
-      osc.stop(t + duration)
-    })
-  } catch {
-    // Silently skip if Web Audio is unavailable
-  }
+    const source = ctx.createBufferSource()
+    source.buffer = buildChimeBuffer(ctx)
+    source.connect(ctx.destination)
+    source.start()
+  } catch { /* silently skip */ }
 }
 
 // ── Supabase Realtime: live push for new notifications ──────────────────
@@ -177,8 +172,23 @@ onMounted(() => {
     )
     .subscribe()
 
+  // ── Polling fallback (30 s) ─────────────────────────────────────────────
+  // Catches notifications if the Realtime channel is unavailable (e.g. free
+  // tier sleep, network blip). Compares unread count to detect new arrivals.
+  let lastUnread = unreadCount.value
+  const pollInterval = setInterval(async () => {
+    const prevUnread = lastUnread
+    await fetchNotifications()
+    const nowUnread = unreadCount.value
+    if (nowUnread > prevUnread) {
+      playNotificationSound()
+    }
+    lastUnread = nowUnread
+  }, 30_000)
+
   onUnmounted(() => {
     supabase.removeChannel(channel)
+    clearInterval(pollInterval)
   })
 })
 </script>

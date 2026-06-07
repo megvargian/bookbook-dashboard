@@ -4,6 +4,7 @@ import { useUserStore } from '~/stores/user'
 
 const toast = useToast()
 const userStore = useUserStore()
+const { isNotificationsSlideoverOpen, notificationUnreadCount } = useDashboard()
 const open = ref(false)
 
 // Base navigation links
@@ -161,6 +162,23 @@ onMounted(async () => {
       </template>
 
       <template #footer="{ collapsed }">
+        <UChip
+          :text="notificationUnreadCount > 0 ? String(notificationUnreadCount) : undefined"
+          :show="notificationUnreadCount > 0"
+          color="error"
+          size="sm"
+          inset
+        >
+          <UButton
+            :label="collapsed ? undefined : 'Notifications'"
+            icon="i-lucide-bell"
+            color="neutral"
+            variant="ghost"
+            block
+            :square="collapsed"
+            @click="isNotificationsSlideoverOpen = true"
+          />
+        </UChip>
         <UserMenu :collapsed="collapsed" />
       </template>
     </UDashboardSidebar>

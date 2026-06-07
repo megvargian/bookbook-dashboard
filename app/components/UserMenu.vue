@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { ClientProfile } from '~/types/client_profile'
 import { useUserStore } from '~/stores/user'
 
 defineProps<{
@@ -9,26 +8,13 @@ defineProps<{
 
 const supabaseUser = useSupabaseUser()
 const supabase = useSupabaseClient()
+const userStore = useUserStore()
 
-const clientProfile = ref<ClientProfile | null>(null)
-
-// Fetch client profile from database
-watchEffect(async () => {
-  if (supabaseUser.value?.id) {
-    const { data } = await supabase
-      .from('client_profile')
-      .select('first_name, last_name, profile_picture')
-      .eq('id', supabaseUser.value.id)
-      .single()
-
-    clientProfile.value = data
-  }
-})
-
+// Use store profile data — no direct Supabase query needed
 const user = computed(() => {
-  // Try client_profile first, then fall back to user_metadata
-  const firstName = clientProfile.value?.first_name || supabaseUser.value?.user_metadata?.first_name || ''
-  const lastName = clientProfile.value?.last_name || supabaseUser.value?.user_metadata?.last_name || ''
+  const p = userStore.clientProfile
+  const firstName = p?.first_name || supabaseUser.value?.user_metadata?.first_name || ''
+  const lastName = p?.last_name || supabaseUser.value?.user_metadata?.last_name || ''
   const fullName = `${firstName} ${lastName}`.trim() || supabaseUser.value?.email || 'User'
   const initials = firstName && lastName
     ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
@@ -37,7 +23,7 @@ const user = computed(() => {
   return {
     name: fullName,
     avatar: {
-      src: clientProfile.value?.profile_picture,
+      src: p?.profile_picture || undefined,
       alt: fullName,
       text: initials
     }

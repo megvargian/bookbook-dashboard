@@ -18,15 +18,12 @@ onMounted(async () => {
 
 // Watch for auth state changes and refetch profile
 supabase.auth.onAuthStateChange(async (event, session) => {
-  console.log('Auth state changed:', event, !!session)
   if (event === 'SIGNED_IN' && session) {
     await userStore.fetchClientProfile()
   } else if (event === 'SIGNED_OUT') {
     userStore.clearUser()
-  } else if (event === 'TOKEN_REFRESHED' && session) {
-    // Also fetch profile on token refresh to ensure data is up to date
-    await userStore.fetchClientProfile()
   }
+  // TOKEN_REFRESHED intentionally not handled — profile data doesn't change on token refresh
 })
 
 useHead({
