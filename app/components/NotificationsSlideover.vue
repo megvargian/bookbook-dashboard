@@ -78,68 +78,73 @@ watch(isNotificationsSlideoverOpen, (open) => {
   if (open) fetchNotifications()
 })
 
-// ── Notification chime (Web Audio API — no file needed) ─────────────────
-// AudioContext must be created / resumed after a user gesture (browser policy).
-// We pre-create it on the first click/keydown so it's ready when a Realtime
-// event arrives later (which is NOT a user gesture).
+// ── Notification chime (Web Audio API) ──────────────────────────────────
+// AudioContext auto-suspends after inactivity. We must call resume() and
+// AWAIT it before scheduling notes — otherwise the context is still suspended
+// when the oscillators try to start.
 let audioCtx: AudioContext | null = null
+const toast = useToast()
 
-function ensureAudioContext() {
+function getOrCreateAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null
-  if (!audioCtx) audioCtx = new AudioContext()
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  return audioCtx
+  try {
+    if (!audioCtx) audioCtx = new AudioContext()
+    return audioCtx
+  } catch {
+    return null
+  }
 }
 
+// Unlock AudioContext on ANY user interaction — covers clicks, keyboard, touch
 onMounted(() => {
-  // Unlock on the very first interaction so subsequent sounds can play freely
-  const unlock = () => ensureAudioContext()
-  document.addEventListener('click', unlock, { once: true })
-  document.addEventListener('keydown', unlock, { once: true })
+  const unlock = () => {
+    const ctx = getOrCreateAudioContext()
+    if (ctx && ctx.state === 'suspended') ctx.resume()
+  }
+  ;(['click', 'keydown', 'pointerdown', 'touchstart'] as const).forEach(evt =>
+    document.addEventListener(evt, unlock, { passive: true })
+  )
   onUnmounted(() => {
-    document.removeEventListener('click', unlock)
-    document.removeEventListener('keydown', unlock)
+    ;(['click', 'keydown', 'pointerdown', 'touchstart'] as const).forEach(evt =>
+      document.removeEventListener(evt, unlock)
+    )
   })
 })
 
-function playNotificationSound() {
+async function playNotificationSound() {
   try {
-    const ctx = ensureAudioContext()
-    if (!ctx || ctx.state === 'suspended') return
+    const ctx = getOrCreateAudioContext()
+    if (!ctx) return
 
-    // Two-tone "ding dong": higher note then lower note
+    // Resume is async — MUST await before scheduling audio or notes are dropped
+    if (ctx.state === 'suspended') await ctx.resume()
+    if (ctx.state !== 'running') return
+
     const notes = [
       { freq: 880, start: 0, duration: 0.18 },
-      { freq: 660, start: 0.20, duration: 0.28 }
+      { freq: 660, start: 0.22, duration: 0.30 }
     ]
 
     notes.forEach(({ freq, start, duration }) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
-
       osc.connect(gain)
       gain.connect(ctx.destination)
-
       osc.type = 'sine'
       osc.frequency.value = freq
-
       const t = ctx.currentTime + start
       gain.gain.setValueAtTime(0, t)
-      gain.gain.linearRampToValueAtTime(0.35, t + 0.01) // quick attack
-      gain.gain.exponentialRampToValueAtTime(0.001, t + duration) // smooth decay
-
+      gain.gain.linearRampToValueAtTime(0.4, t + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + duration)
       osc.start(t)
       osc.stop(t + duration)
     })
   } catch {
-    // Web Audio not available — silently skip
+    // Silently skip if Web Audio is unavailable
   }
 }
 
 // ── Supabase Realtime: live push for new notifications ──────────────────
-// The DB trigger `on_booking_insert` inserts a notification row whenever a
-// new booking is created (from the dashboard OR from the external booking site).
-// We subscribe here so the badge + list update instantly without polling.
 onMounted(() => {
   const channel = supabase
     .channel('admin-notifications')
@@ -152,10 +157,20 @@ onMounted(() => {
       },
       (payload) => {
         const incoming = payload.new as import('~/types').Notification
-        // Avoid duplicates (e.g. if fetchNotifications already picked it up)
         const alreadyPresent = notifications.value.some(n => n.id === incoming.id)
         if (!alreadyPresent) {
           notifications.value = [incoming, ...notifications.value]
+
+          // Toast popup — visible regardless of audio permissions
+          toast.add({
+            title: incoming.title || 'New Booking',
+            description: incoming.body || '',
+            icon: 'i-lucide-calendar-plus',
+            color: 'success',
+            duration: 6000
+          })
+
+          // Sound — async, fire-and-forget
           playNotificationSound()
         }
       }
