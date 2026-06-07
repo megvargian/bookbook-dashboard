@@ -79,9 +79,33 @@ watch(isNotificationsSlideoverOpen, (open) => {
 })
 
 // ── Notification chime (Web Audio API — no file needed) ─────────────────
+// AudioContext must be created / resumed after a user gesture (browser policy).
+// We pre-create it on the first click/keydown so it's ready when a Realtime
+// event arrives later (which is NOT a user gesture).
+let audioCtx: AudioContext | null = null
+
+function ensureAudioContext() {
+  if (typeof window === 'undefined') return null
+  if (!audioCtx) audioCtx = new AudioContext()
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  return audioCtx
+}
+
+onMounted(() => {
+  // Unlock on the very first interaction so subsequent sounds can play freely
+  const unlock = () => ensureAudioContext()
+  document.addEventListener('click', unlock, { once: true })
+  document.addEventListener('keydown', unlock, { once: true })
+  onUnmounted(() => {
+    document.removeEventListener('click', unlock)
+    document.removeEventListener('keydown', unlock)
+  })
+})
+
 function playNotificationSound() {
   try {
-    const ctx = new AudioContext()
+    const ctx = ensureAudioContext()
+    if (!ctx || ctx.state === 'suspended') return
 
     // Two-tone "ding dong": higher note then lower note
     const notes = [
@@ -107,11 +131,8 @@ function playNotificationSound() {
       osc.start(t)
       osc.stop(t + duration)
     })
-
-    // Clean up context after both notes finish
-    setTimeout(() => ctx.close(), 800)
   } catch {
-    // Web Audio not available (e.g. SSR or browser restriction) — silently skip
+    // Web Audio not available — silently skip
   }
 }
 
