@@ -149,8 +149,13 @@ const selectedDate = ref<Date | null>(null)
 const selectedTimeSlot = ref<string | null>(null)
 const showCreateModal = ref(false)
 const loading = ref(false)
-const viewMode = ref<'week' | 'month' | 'day'>('week')
+// Employees are locked to day view showing only today/past
+const viewMode = ref<'week' | 'month' | 'day'>(isEmployee.value ? 'day' : 'week')
 const editingBooking = ref<Booking | null>(null)
+
+// For employees: today is the navigation ceiling
+const today = new Date()
+today.setHours(0, 0, 0, 0)
 
 // Add hover state for better UX
 const hoveredSlot = ref<{ date: Date, time: string } | null>(null)
@@ -639,6 +644,9 @@ const navigateMonth = (direction: 'prev' | 'next') => {
 const navigateDay = (direction: 'prev' | 'next') => {
   const newDate = new Date(currentDate.value)
   newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1))
+  newDate.setHours(0, 0, 0, 0)
+  // Employees cannot navigate to future dates
+  if (isEmployee.value && newDate > today) return
   currentDate.value = newDate
 }
 
@@ -898,7 +906,7 @@ const selectMiniCalDay = (date: Date | null) => {
         </template>
 
         <template #right>
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-1 sm:gap-3 flex-wrap">
             <UButton variant="outline" size="sm" @click="goToToday">
               Today
             </UButton>
@@ -907,40 +915,42 @@ const selectMiniCalDay = (date: Date | null) => {
               variant="ghost"
               size="sm"
               icon="i-lucide-refresh-cw"
-              title="Refresh calendar data"
+              class="hidden sm:flex"
+              title="Refresh"
               @click="forceRefreshCalendar"
-            >
-              Refresh
-            </UButton>
+            />
 
-            <div class="flex items-center gap-2">
-              <UButton variant="ghost" icon="i-lucide-chevron-left" @click="navigate('prev')" />
-              <span class="text-lg font-medium min-w-48 text-center">
+            <!-- Navigation -->
+            <div class="flex items-center gap-1">
+              <UButton
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-chevron-left"
+                @click="navigate('prev')"
+              />
+              <span class="text-sm sm:text-base font-medium min-w-28 sm:min-w-48 text-center">
                 <template v-if="viewMode === 'week'">
-                  {{ currentWeekStart.toLocaleDateString('en-US', {
-                    month: 'long',
-                    year: 'numeric'
-                  }) }}
+                  {{ currentWeekStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) }}
                 </template>
                 <template v-else-if="viewMode === 'day'">
-                  {{ currentDate.toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric'
-                  }) }}
+                  {{ currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) }}
                 </template>
                 <template v-else>
-                  {{ currentMonthStart.toLocaleDateString('en-US', {
-                    month: 'long',
-                    year: 'numeric'
-                  }) }}
+                  {{ currentMonthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) }}
                 </template>
               </span>
-              <UButton variant="ghost" icon="i-lucide-chevron-right" @click="navigate('next')" />
+              <!-- Disable next for employees when at today -->
+              <UButton
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-chevron-right"
+                :disabled="isEmployee && formatDate(currentDate) >= formatDate(today)"
+                @click="navigate('next')"
+              />
             </div>
 
-            <div class="flex items-center rounded-lg border border-gray-600 overflow-hidden">
+            <!-- View switcher: hidden for employees (locked to day) -->
+            <div v-if="isAdmin" class="flex items-center rounded-lg border border-gray-600 overflow-hidden">
               <UButton
                 :variant="viewMode === 'day' ? 'solid' : 'ghost'"
                 size="sm"
@@ -968,7 +978,7 @@ const selectMiniCalDay = (date: Date | null) => {
             </div>
 
             <UChip
-              v-if="userStore.clientProfile?.role === 'admin'"
+              v-if="isAdmin"
               :text="notificationUnreadCount > 0 ? String(notificationUnreadCount) : undefined"
               :show="notificationUnreadCount > 0"
               color="error"
@@ -989,8 +999,8 @@ const selectMiniCalDay = (date: Date | null) => {
 
     <template #body>
       <div class="flex h-full">
-        <!-- ── LEFT: Mini calendar sidebar ─────────────────── -->
-        <div class="w-52 flex-shrink-0 flex flex-col gap-3 p-3 border-r border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <!-- ── LEFT: Mini calendar sidebar (hidden on mobile, hidden for employees) ── -->
+        <div v-if="isAdmin" class="hidden md:flex w-52 flex-shrink-0 flex-col gap-3 p-3 border-r border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           <!-- Mini Calendar Card -->
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm p-3">
             <!-- Month nav -->
@@ -1100,10 +1110,10 @@ const selectMiniCalDay = (date: Date | null) => {
 
             <!-- Day Time Slots -->
             <div class="flex-1">
-              <div class="grid grid-cols-[80px_1fr]">
+              <div class="grid grid-cols-[56px_1fr] sm:grid-cols-[80px_1fr]">
                 <div v-for="time in timeSlots" :key="time" class="contents">
                   <!-- Time Label -->
-                  <div class="p-2 text-xs text-slate-400 dark:text-gray-400 text-right border-r border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 min-h-14 flex items-center justify-end pr-3">
+                  <div class="p-1 sm:p-2 text-xs text-slate-400 dark:text-gray-400 text-right border-r border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 min-h-14 flex items-center justify-end pr-2 sm:pr-3">
                     {{ time }}
                   </div>
 
@@ -1120,13 +1130,13 @@ const selectMiniCalDay = (date: Date | null) => {
                     <!-- Compact stacked pills -->
                     <template v-for="booking in getBookingsStartingAtTime(currentDate, time)" :key="booking.id">
                       <div
-                        class="w-full rounded text-white text-xs px-2 py-0.5 mb-0.5 cursor-pointer truncate flex items-center gap-2 leading-tight"
+                        class="w-full rounded text-white text-xs px-2 py-1 mb-0.5 cursor-pointer truncate flex items-center gap-2 leading-tight"
                         :class="getBookingColor(booking)"
                         @click.stop="editBooking(booking)"
                       >
                         <span class="font-semibold shrink-0">{{ extractTimeFromTimestamp(booking.start_time) }}</span>
                         <span class="truncate">{{ booking.customer?.full_name || [booking.client_profile?.first_name, booking.client_profile?.last_name].filter(Boolean).join(' ') || booking.client_profile?.email || 'Customer' }}</span>
-                        <span class="shrink-0 ml-auto text-white/80 capitalize">{{ booking.status }}</span>
+                        <span class="shrink-0 ml-auto text-white/80 capitalize hidden sm:inline">{{ booking.status }}</span>
                       </div>
                     </template>
                   </div>
@@ -1138,7 +1148,7 @@ const selectMiniCalDay = (date: Date | null) => {
           <!-- Week View - Calendar Grid -->
           <div v-else-if="viewMode === 'week'" class="h-full flex flex-col bg-white dark:bg-gray-900 overflow-auto">
             <!-- Week Days Header -->
-            <div class="grid grid-cols-8 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
+            <div class="grid grid-cols-8 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 min-w-[600px]">
               <div class="p-3 text-sm font-medium text-slate-500 dark:text-gray-300 text-center border-r border-slate-200 dark:border-gray-700">
                 Time
               </div>
@@ -1175,7 +1185,7 @@ const selectMiniCalDay = (date: Date | null) => {
 
             <!-- Time Slots Grid -->
             <div class="flex-1">
-              <div class="grid grid-cols-8">
+              <div class="grid grid-cols-8 min-w-[600px]">
                 <div v-for="time in timeSlots" :key="time" class="contents">
                   <!-- Time Column -->
                   <div class="p-2 text-xs text-slate-400 dark:text-gray-400 text-right border-r border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 sticky left-0 z-10 min-h-12 flex items-center justify-end">
@@ -1372,7 +1382,7 @@ const selectMiniCalDay = (date: Date | null) => {
     <div class="absolute inset-0 bg-black/50" @click="closeModal" />
 
     <!-- Modal Panel -->
-    <div class="relative w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+    <div class="relative w-full max-w-lg mx-0 sm:mx-4 bg-white dark:bg-gray-800 rounded-none sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh]">
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
         <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
